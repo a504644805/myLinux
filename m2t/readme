@@ -1,0 +1,16 @@
+func: move file to ~/my_trash/
+usage: ./m2t fileName1,fileName2...
+	use alias m2t='...' for convenience
+
+what I learn:
+1.sprintf: stream printf, instead of print onto screen, sprintf put result into a char* string. eg.sprintf(char* dst,"my age is %d",i)
+
+a POSIX function
+
+can be used to transfer int,float... to string
+
+note: when transform like int to char* string, better not use itoa because it's not a POSIX function.
+
+
+what shall note:
+1.when exec mv, the dest path shall be /home/xy/my_trash rather than ~/my_trash.Or would report "can't move to ~/mu_trash: no such directory"
