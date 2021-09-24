@@ -1,0 +1,22 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/xy/myLinux/test/main.cpp
+sys/types.h
+-
+sys/wait.h
+-
+stdio.h
+-
+sched.h
+-
+signal.h
+-
+unistd.h
+-
+
