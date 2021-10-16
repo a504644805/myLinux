@@ -1,0 +1,70 @@
+[bits 32]
+extern put_str
+extern int_content_entry_array
+
+%define NO_ERROR_CODE push 0
+%define ERROR_CODE nop
+
+section .data
+int_msg db "interrupt handling...",0xa,0
+global int_entry_table
+int_entry_table:
+
+%macro VECTOR 2
+section .text
+int%1entry:
+	%2
+	pushad
+	;handle the interrupt
+	push %1
+	call [int_content_entry_array+%1*4]
+	add esp,4
+
+	;send EOI to slave and master
+	mov al,0x20
+	out 0xa0,al
+	out 0x20,al		
+
+	popad
+	add esp,4
+	iret
+
+section .data
+	dd int%1entry	
+
+%endmacro
+
+
+VECTOR 0,NO_ERROR_CODE
+VECTOR 1,NO_ERROR_CODE
+VECTOR 2,NO_ERROR_CODE
+VECTOR 3,NO_ERROR_CODE
+VECTOR 4,NO_ERROR_CODE
+VECTOR 5,NO_ERROR_CODE
+VECTOR 6,NO_ERROR_CODE
+VECTOR 7,NO_ERROR_CODE
+VECTOR 8,ERROR_CODE
+VECTOR 9,NO_ERROR_CODE
+VECTOR 10,ERROR_CODE
+VECTOR 11,ERROR_CODE
+VECTOR 12,ERROR_CODE
+VECTOR 13,ERROR_CODE
+VECTOR 14,ERROR_CODE
+VECTOR 15,NO_ERROR_CODE
+VECTOR 16,NO_ERROR_CODE
+VECTOR 17,ERROR_CODE
+VECTOR 18,NO_ERROR_CODE
+VECTOR 19,NO_ERROR_CODE
+VECTOR 20,NO_ERROR_CODE
+VECTOR 21,NO_ERROR_CODE
+VECTOR 22,NO_ERROR_CODE
+VECTOR 23,NO_ERROR_CODE
+VECTOR 24,NO_ERROR_CODE
+VECTOR 25,NO_ERROR_CODE
+VECTOR 26,NO_ERROR_CODE
+VECTOR 27,NO_ERROR_CODE
+VECTOR 28,NO_ERROR_CODE
+VECTOR 29,NO_ERROR_CODE
+VECTOR 30,NO_ERROR_CODE
+VECTOR 31,NO_ERROR_CODE
+VECTOR 32,NO_ERROR_CODE
