@@ -1,0 +1,3 @@
+/home/xy/myLinux/student_management_sys/cmake-build-debug/CMakeFiles/rebuild_cache.dir
+/home/xy/myLinux/student_management_sys/cmake-build-debug/CMakeFiles/edit_cache.dir
+/home/xy/myLinux/student_management_sys/cmake-build-debug/CMakeFiles/student_management_sys.dir

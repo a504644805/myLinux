@@ -1,0 +1,4 @@
+# ninja log v5
+0	909	1635063996144802794	CMakeFiles/student_management_sys.dir/main.cpp.o	51b5250748cbb88c
+0	1087	1635063996320792032	CMakeFiles/student_management_sys.dir/student.cpp.o	825ac9196c590ee0
+1087	1213	1635063996444784450	student_management_sys	a66e7210d4f105a2
