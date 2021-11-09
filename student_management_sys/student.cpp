@@ -34,10 +34,14 @@ std::vector<student_s*> student_sys::search_stu(const std::string& name_) {//姓
     }
     return result;
 }
-void student_sys::modify_stu(unsigned int no_, const std::string& name_, unsigned int age_, unsigned int class_no){
+int student_sys::modify_stu(unsigned int no_, const std::string& name_, unsigned int age_, unsigned int class_no){
     student_s* s=search_stu(no_);
-    assert(s);
-    assert(s->no==no_);//学号不可修改
+    if(!s){
+        return -1;
+    }
+    if(s->no!=no_){//学号不可修改
+        return -2;
+    }
 
     if(s->class_no!=class_no) {//更换班级
         del_stu(no_);
@@ -47,9 +51,11 @@ void student_sys::modify_stu(unsigned int no_, const std::string& name_, unsigne
         s->name=name_;
         s->age=age_;
     }
+    return true;
 }
-void student_sys::add_stu(unsigned int no_, const std::string& name_, unsigned int age_, unsigned int class_no){
-    assert(!search_stu(no_));//学号唯一
+int student_sys::add_stu(unsigned int no_, const std::string& name_, unsigned int age_, unsigned int class_no){
+    if(search_stu(no_))//学号唯一
+        return false;
 
     auto i=classes.find(class_no);
     if(i==classes.end()){
@@ -71,12 +77,17 @@ void student_sys::add_stu(unsigned int no_, const std::string& name_, unsigned i
     if(cur==(*i).second) {//list_for_each_entry走尽，未找到比新学生的no还大的学生
         list_add_tail(&(s->node), &(pre->node));
     }
+
+    return true;
 }
-void student_sys::del_stu(unsigned int no_){//
+int student_sys::del_stu(unsigned int no_){//
     student_s* s=search_stu(no_);
-    assert(s);
+    if(!s){
+        return false;
+    };
     __list_del(s->node.prev,s->node.next);
     free(s);
+    return true;
 }
 //分班级按学号从小到大打印
 void student_sys::print_all_stu() {
@@ -87,10 +98,7 @@ void student_sys::print_all_stu() {
     student_s *cur;
     for (auto i = classes.begin(); i != classes.end(); i++) {
         list_for_each_entry(cur, &((*i).second->node), node) {
-            cout << "Name:"<< setw(5) << cur->name << "  ";
-            cout <<"No:"<< setw(w) << cur->no << "  ";
-            cout <<"Age:"<< setw(4) << cur->age << "  ";
-            cout <<"Class:"<< setw(w) << cur->class_no << endl;
+            cur->print_stu();
         }
         cout << endl;
     }
