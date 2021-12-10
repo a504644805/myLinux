@@ -62,6 +62,8 @@ struct pool{
 */
 struct pool kpool,upool,k_vpool;
 void init_pool(){
+    memset((void*)0xc009a000,0,4*PG_SIZE);
+
     size_t memsz=1*MB+(int)(*((int*)(0xb00)));//actual memory is smaller than memsz because some are shadow area in low 1MB
     if(memsz>128*MB){
         memsz=128*MB;//we have 4 page for 3 bm.p, 1 page(4KB) can manage 128MB, tired of calculation so just pick 128MB as the max memsz we support
@@ -155,6 +157,7 @@ void* palloc(enum K_U_FLAG WHICH_PPOOL){
         return NULL;
     }
     else{
+        set_bit_bm(bm,bit_start);
         return s_addr+bit_start*4*KB;
     }
 }
@@ -166,12 +169,12 @@ void build_mapping(void* vaddr,void* paddr){//vaddr和paddr是4KB对齐的空闲
         //pde.P==0
         void* pt_paddr=palloc(K);
         ASSERT(pt_paddr!=NULL);
-        *pde_addr=(int)pt_paddr|PTE_U|PTE_RW|PTE_P;
-        memset((void*)((int)pte_addr&0xfffff000),0,PG_SIZE);//clear the new pt
+        *pde_addr=(unsigned int)pt_paddr|PTE_U|PTE_RW|PTE_P;
+        memset((void*)((unsigned int)pte_addr&0xfffff000),0,PG_SIZE);//clear the new pt
     }
     else{
     }
-    *pte_addr=(int)paddr|PTE_U|PTE_RW|PTE_P;
+    *pte_addr=(unsigned int)paddr|PTE_U|PTE_RW|PTE_P;
 }
 
 void* get_pde_addr(void* _vaddr){

@@ -8,9 +8,7 @@
 int main(void){
 	put_str("Hi, I am kernel\n");
 
-	void* p=malloc_page(K,3);
-	memset(p,0,3*PG_SIZE);
-
+	init_pool();
 	init_interrupt(); //1.init_8259A
 			 		  //2.init_idt
 			 		  //3.lidt	
