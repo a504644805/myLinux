@@ -1,8 +1,7 @@
 #include "global.h"
 #include "io.h"
 #include "include/interrupt.h"
-void put_str(char* p);
-void put_int(int i);
+#include "lib/print.h"
 
 void init_8259A(){
 	//Master's ICW1~4
@@ -77,12 +76,10 @@ void init_interrupt(){
 }
 
 //---------------------------------------
-/*
- * continuation: compile and test if the code is right 
- */
+
 INTR_STATUS get_intr_status(){
     int status;
-    asm volatile("pushfl;popfl %0":"=a"(status));
+    asm volatile("pushfl;popl %0":"=a"(status));
     if(status & Mask_IF==0){
         return OFF;
     }
