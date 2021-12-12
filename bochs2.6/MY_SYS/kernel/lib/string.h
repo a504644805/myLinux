@@ -1,3 +1,5 @@
+#ifndef STR_H
+#define STR_H
 #include "global.h"
 #include "debug.h"
 /*The  memset()  function fills the first n bytes of the memory area pointed
@@ -45,4 +47,4 @@ char *strrchr(const char *s, int c);
 size_t strlen(const char *s);
 
 
-
+#endif

@@ -180,6 +180,7 @@ mov bx,ax
 
 ret
 
+global set_cursor
 set_cursor:
 ;input ebx as cursor pos
 ;may change ax,dx

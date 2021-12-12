@@ -1,6 +1,9 @@
 #ifndef INTERRUPT_H
 #define INTERRUPT_H
-
+#include "global.h"
+#include "io.h"
+#include "print.h"
+#include "thread.h"
 #define Mask_IF 0x200
 enum INTR_STATUS{
     ON,OFF

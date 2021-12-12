@@ -14,18 +14,27 @@ int_entry_table:
 section .text
 int%1entry:
 	%2
+	push ds
+	push es
+	push fs
+	push gs
 	pushad
+
+	;send EOI to slave and master
+	mov al,0x20
+	out 0xa0,al
+	out 0x20,al
+
 	;handle the interrupt
 	push %1
 	call [int_content_entry_array+%1*4]
 	add esp,4
 
-	;send EOI to slave and master
-	mov al,0x20
-	out 0xa0,al
-	out 0x20,al		
-
 	popad
+	pop gs
+	pop fs
+	pop es
+	pop ds
 	add esp,4
 	iret
 

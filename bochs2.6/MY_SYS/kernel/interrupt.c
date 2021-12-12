@@ -1,8 +1,4 @@
-#include "global.h"
-#include "io.h"
 #include "include/interrupt.h"
-#include "lib/print.h"
-
 void init_8259A(){
 	//Master's ICW1~4
 	outb(0x11,0x20);
@@ -42,9 +38,14 @@ void init_idt(){
 
 //中断服务程序具体内容
 void general_interrupt_handler(int interruptNo){
-	put_str("interrupt0x");
-	put_int(interruptNo);
-	put_str(" occured!\n");
+	asm volatile("call set_cursor"::"b"(0):"eax","edx");
+	for (size_t i = 0; i < 80*4; i++){//清理出4行的空间
+		put_char(' ');
+	}
+	put_str("**********interrupt occured**********\n");//time intr won't have such msg
+	put_str("interrupt0x");put_int(interruptNo);put_str(" occured!\n");
+	put_str("**********interrupt msg end**********\n");
+	while(1);//there shall be no intr(except time_intr) now
 }
 //中断服务程序具体内容入口地址数组
 void* int_content_entry_array[IDT_DESC_NUM];
@@ -52,6 +53,7 @@ void init_int_content_entry_array(){
 	for(int i=0;i<IDT_DESC_NUM;i++){
 		int_content_entry_array[i]=general_interrupt_handler;
 	}
+	int_content_entry_array[32]=time_intr_handler;
 }
 
 #define INPUT_FREQUENCY 1193180
@@ -63,7 +65,11 @@ void set_clock_frequency(){
 
 }
 
+//elapsed time after boot
+//take 1.3 year to reach 0xffffffff in 100HZ time intr
+uint32_t SYS_ELAPSED_TIME;
 void init_interrupt(){
+	SYS_ELAPSED_TIME=0;
 	init_8259A();
 	init_idt();
 	init_int_content_entry_array();
@@ -80,7 +86,7 @@ void init_interrupt(){
 INTR_STATUS get_intr_status(){
     int status;
     asm volatile("pushfl;popl %0":"=a"(status));
-    if(status & Mask_IF==0){
+    if((status & Mask_IF)==0){
         return OFF;
     }
     else{
