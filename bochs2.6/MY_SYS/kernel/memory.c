@@ -76,19 +76,19 @@ void init_pool(){
     kpool.bm.byte_len=kmem/(4*KB)/8;
     kpool.s_addr=(void*)(2*MB);
     kpool.man_sz=kmem;
-    kpool.type=P;
+    kpool.type=Physical;
 
     upool.bm.p=(char*)(POOL_BASE_ADDR+kpool.bm.byte_len);
     upool.bm.byte_len=umem/(4*KB)/8;
     upool.s_addr=(void*)(2*MB+kmem);
     upool.man_sz=umem;
-    upool.type=P;
+    upool.type=Physical;
 
     k_vpool.bm.p=(char*)POOL_BASE_ADDR + kpool.bm.byte_len + upool.bm.byte_len;
     k_vpool.bm.byte_len=kpool.bm.byte_len;
     k_vpool.s_addr=(void*)(K_HEAP_BASE_ADDR);
     k_vpool.man_sz=0;
-    k_vpool.type=V;
+    k_vpool.type=Virtual;
 
     report_init_pool();
 }

@@ -33,7 +33,6 @@ void init_idt(){
 		idt[i].attr=I_G_D_attr;
 		idt[i].offset_high_16_bits=(((uint32_t)int_entry_table[i]&0xffff0000)>>16);
 	}
-
 }
 
 //中断服务程序具体内容

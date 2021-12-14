@@ -16,7 +16,7 @@ int get_bit_bm(const struct bitmap* bm,int bit_idx);
 int scan_bm(const struct bitmap* bm,size_t cnt);
 
 enum POOL_TYPE{
-    P,V
+    Physical,Virtual
 };
 struct pool{
     struct bitmap bm;

@@ -10,12 +10,13 @@ all:
 	gcc -m32 -c lib/string.c -o build/string.o $(INCLUDE_FLAG)
 	gcc -m32 -c thread.c -o build/thread.o $(INCLUDE_FLAG)
 	gcc -m32 -c lib/list.c -o build/list.o $(INCLUDE_FLAG)
+	gcc -m32 -c lock.c -o build/lock.o $(INCLUDE_FLAG)
 
 	nasm -f elf int_entry_table.S -o build/int_entry_table.o
 	nasm -f elf lib/print.S -o build/print.o -I include/
 	nasm -f elf switch_to.S -o build/switch_to.o
 
-	ld -melf_i386 -Ttext 0xc0001500 -e main build/main.o build/print.o build/int_entry_table.o build/interrupt.o build/debug.o build/string.o build/memory.o build/thread.o build/switch_to.o build/list.o -o build/a.out
+	ld -melf_i386 -Ttext 0xc0001500 -e main build/main.o build/print.o build/int_entry_table.o build/interrupt.o build/debug.o build/string.o build/memory.o build/thread.o build/switch_to.o build/list.o build/lock.o -o build/a.out
 write:
 	dd if=build/a.out of=../../a.img bs=512 count=200 seek=9 conv=notrunc
 

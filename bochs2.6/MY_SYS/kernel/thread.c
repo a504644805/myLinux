@@ -79,6 +79,7 @@ extern uint32_t SYS_ELAPSED_TIME;
 void time_intr_handler(){
     SYS_ELAPSED_TIME++;
     struct task_struct* cur=get_cur_running();
+    ASSERT((cur->stack_overflow_chk)==19980211);
     if(++(cur->elapsed_ticks) == (cur->ticks)){
         struct task_struct* next=schedule();
         if(next==NULL){

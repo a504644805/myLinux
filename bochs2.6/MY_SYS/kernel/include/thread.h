@@ -49,12 +49,12 @@ struct intr_s{
     uint32_t ss3;
 };
 
+enum TASK_STATUS{ RUNNING,READY,WAITING,HANGING,BLOCKED };
 struct task_struct{
     void* esp;
 
-    enum{
-        RUNNING,READY,WAITING,HANGING
-    }status;
+    enum TASK_STATUS status;
+
     list_node tag_s;//挂载在和status相关的队列上
     list_node tag_all;
     int prio;
