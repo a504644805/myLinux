@@ -10,8 +10,8 @@ void init_8259A(){
 	outb(40,0xa1);
 	outb(0x02,0xa1);
 	outb(0x01,0xa1);
-	//OCW1 mask all except IRQ0
-	outb(0xfe,0x21);
+	//OCW1 mask all except IRQ0,IRQ1
+	outb(0xfc,0x21);
 	outb(0xff,0xa1);
 }
 
@@ -53,6 +53,7 @@ void init_int_content_entry_array(){
 		int_content_entry_array[i]=general_interrupt_handler;
 	}
 	int_content_entry_array[32]=time_intr_handler;
+	int_content_entry_array[33]=kbd_intr_handler;
 }
 
 #define INPUT_FREQUENCY 1193180

@@ -17,7 +17,7 @@ typedef uint32_t size_t;
 #define MB (1024*1024)
 
 //IDT
-#define IDT_DESC_NUM 33
+#define IDT_DESC_NUM 48
 
 
 #define I_G_D_P_0 0
