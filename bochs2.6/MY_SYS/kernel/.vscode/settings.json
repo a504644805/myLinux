@@ -4,6 +4,11 @@
         "print.h": "c",
         "string.h": "c",
         "global.h": "c",
-        "interrupt.h": "c"
+        "interrupt.h": "c",
+        "thread.h": "c",
+        "*.inc": "c",
+        "keyboard.h": "c",
+        "io.h": "c",
+        "memory.h": "c"
     }
 }

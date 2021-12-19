@@ -1,10 +1,11 @@
 #ifndef MEMORY_H
 #define MEMORY_H
-
 #include "global.h"
 #include "debug.h"
 #include "print.h"
 #include "string.h"
+
+typedef int testm;
 
 struct bitmap{
     char* p;
@@ -41,6 +42,7 @@ void build_mapping(void* vaddr,void* paddr);//vaddr和paddr是4KB对齐的空闲
 
 void* get_pde_addr(void* _vaddr);
 void* get_pte_addr(void* _vaddr);
+void* get_phy_addr(void* _vaddr);
 void report_init_pool();
 
 #endif

@@ -1,6 +1,7 @@
 #ifndef MY_IO_H
 #define MY_IO_H
 #include "global.h"
+
 //AT&A
 //in dx,al
 static inline uint8_t inb(uint16_t dx){

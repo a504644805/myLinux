@@ -33,6 +33,7 @@ void V(struct semaphore* semp){
     set_intr_status(s);
 }
 
+extern struct TSS tss;
 void block(enum TASK_STATUS status){
     ASSERT(status==BLOCKED||status==HANGING||status==WAITING);
     enum INTR_STATUS s=disable_intr();
@@ -47,6 +48,19 @@ void block(enum TASK_STATUS status){
     
     //protect environment
     asm volatile("pushfl;push %%ds;push %%es;push %%fs;push %%gs;push %%ss;pusha"::);
+
+    //lcr3 and update tss
+    uint32_t pd_paddr;
+    if(next->pd!=NULL){//uprocess
+        pd_paddr=(uint32_t)get_phy_addr(next->pd);
+    }
+    else{
+        pd_paddr=0x100000;
+    }
+    asm volatile("movl %0,%%cr3"::"a"(pd_paddr));
+    tss.esp0=(uint32_t)((void*)next+4*KB);
+    tss.ss0=SELECTOR_K_DATA;
+
     switch_to(cur,next);
     //restore environment   <-- back to here after being wake_up and reschdule
     asm volatile("popa;pop %%ss;pop %%gs;pop %%fs;pop %%es;pop %%ds;popfl"::);

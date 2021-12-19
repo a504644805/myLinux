@@ -8,7 +8,7 @@ all:
 	gcc -m32 -c memory.c -o build/memory.o $(INCLUDE_FLAG)
 	gcc -m32 -c lib/debug.c -o build/debug.o $(INCLUDE_FLAG)
 	gcc -m32 -c lib/string.c -o build/string.o $(INCLUDE_FLAG)
-	gcc -m32 -c thread.c -o build/thread.o $(INCLUDE_FLAG)
+	gcc -m32 -c thread.c -o build/thread.o $(INCLUDE_FLAG) -fno-stack-protector
 	gcc -m32 -c lib/list.c -o build/list.o $(INCLUDE_FLAG)
 	gcc -m32 -c lock.c -o build/lock.o $(INCLUDE_FLAG)
 	gcc -m32 -c dev/keyboard.c -o build/keyboard.o $(INCLUDE_FLAG)

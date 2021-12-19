@@ -1,3 +1,5 @@
+#include "print.h"
+#include "lib/debug.h"
 #include "include/memory.h"
 /*
 struct bitmap{
@@ -99,7 +101,7 @@ enum K_U_FLAG{
 };
 */
 void* malloc_page(enum K_U_FLAG flag,size_t cnt){
-    void* vaddr_start=valloc(flag,cnt);
+    void* vaddr_start=valloc(flag,cnt);    
     void* vaddr=vaddr_start;
     if(vaddr==NULL){
         return NULL;
@@ -111,14 +113,14 @@ void* malloc_page(enum K_U_FLAG flag,size_t cnt){
             /*
                 回退
             */
+            ASSERT(paddr!=NULL);
             return NULL;
         }
         else{
             build_mapping(vaddr,paddr);
             vaddr+=4*KB;// no need to "/4"
-        }
+        }   
     }
-
     return vaddr_start;
 }
 
@@ -187,6 +189,11 @@ void* get_pte_addr(void* _vaddr){
     return (void*)((1023<<22)|((vaddr>>22)<<12)|(((vaddr<<10)>>22)*4));
 }
 
+void* get_phy_addr(void* _vaddr){
+    void* pte_addr=get_pte_addr(_vaddr);
+    unsigned int pte_content=*(unsigned int*)pte_addr;
+    return (void*)((pte_content&0xfffff000) + (((unsigned int)_vaddr)&0x00000fff));
+}
 
 void report_init_pool(){
     put_str("Here is the init_pool result:\n");

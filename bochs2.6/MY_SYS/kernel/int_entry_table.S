@@ -28,6 +28,17 @@ int%1entry:
 	;handle the interrupt
 	push %1
 	call [int_content_entry_array+%1*4]
+
+	jmp exit_intr
+
+section .data
+	dd int%1entry	
+
+%endmacro
+
+section .text
+global exit_intr
+exit_intr:
 	add esp,4
 
 	popad
@@ -37,12 +48,6 @@ int%1entry:
 	pop ds
 	add esp,4
 	iret
-
-section .data
-	dd int%1entry	
-
-%endmacro
-
 
 VECTOR 0,NO_ERROR_CODE
 VECTOR 1,NO_ERROR_CODE

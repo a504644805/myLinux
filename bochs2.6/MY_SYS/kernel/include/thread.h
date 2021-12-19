@@ -1,10 +1,11 @@
 #ifndef THREAD_H
 #define THREAD_H
-#include "global.h"
-#include "memory.h"
-#include "interrupt.h"
 #include "debug.h"
+#include "memory.h"
+#include "global.h"
+#include "interrupt.h"
 #include "list.h"
+#include "string.h"
 
 #define MAIN_THREAD_TASK_STRUCT 0xc009e000
 
@@ -14,7 +15,7 @@ void time_intr_handler();
 
 struct task_struct* schedule();
 struct task_struct* get_cur_running();
-void f_wrapper(void (*f)(void*),void* f_arg);
+void start_kthread(void (*f)(void*),void* f_arg);
 
 //in switch_to.S
 void switch_to(struct task_struct* cur,struct task_struct* next);
@@ -61,13 +62,31 @@ struct task_struct{
     int ticks;//==prio in our policy
     int elapsed_ticks;
 
-    
-    /*
-    void* pdt;
+    void* pd;
     struct pool u_vpool;
-    */
-
+    
    int stack_overflow_chk;
 };
+
+//--------------after we introduce 用户态----------------------
+typedef unsigned int pte_t;
+typedef unsigned int pde_t;
+
+void* create_process(void (*f)(), int prio);
+
+void* prepare_pd();
+void prepare_u_vpool(struct pool* p);
+void prepare_intr_s(struct intr_s* p,void(*f)());
+#define USTACK_PAGE_SIZE 1
+void start_uprocess();
+
+struct TSS{
+    uint32_t unused;
+    uint32_t esp0;
+    uint32_t ss0;
+    uint32_t _unused[32];
+};
+void update_gdt();//在引入用户态后，gdt需添加tss,code3,data3
+
 
 #endif
