@@ -1,4 +1,5 @@
 #include "include/thread.h"
+#include "stdio.h"
 /*
 struct task_struct{
     void* esp;
@@ -29,6 +30,7 @@ void make_main_thread(){
     INIT_LIST_HEAD(&all_task_list);
 
     struct task_struct* p=(struct task_struct*)MAIN_THREAD_TASK_STRUCT;
+    p->pid=allocate_pid();
     p->esp;//no need to save esp because main thread is running now, esp is now somewhat below 0xc009f000
     p->status=RUNNING;
     p->tag_s;
@@ -46,6 +48,7 @@ void* start_thread(void (*f)(void*), void* f_arg, int prio){
     if(pcb==NULL){
         return NULL;
     }
+    pcb->pid=allocate_pid();
     pcb->esp=(void*)pcb+4*KB;
     pcb->status=READY;
     list_add_tail(&(pcb->tag_s),&ready_list);
@@ -87,6 +90,7 @@ void* create_process(void (*f)(), int prio){
     if(pcb==NULL){
         return NULL;
     }
+    pcb->pid=allocate_pid();
     pcb->esp=(void*)pcb+4*KB;
     pcb->status=READY;
     list_add_tail(&(pcb->tag_s),&ready_list);
@@ -96,6 +100,7 @@ void* create_process(void (*f)(), int prio){
     pcb->elapsed_ticks=0;
     pcb->pd=prepare_pd();//DIFF.1
     prepare_u_vpool(&(pcb->u_vpool));
+    prepare_u_arena_cluster(pcb->u_arena_cluster);
     pcb->stack_overflow_chk=0x19980211;
 
     //prepare the stack for 初次调用
@@ -201,11 +206,21 @@ void* prepare_pd(){
 void prepare_u_vpool(struct pool* p){
     p->bm.byte_len=(0xc0000000-0x8048000)/(4*KB)/8;//luckily 是整除
     p->bm.p=malloc_page(K,((p->bm.byte_len)/(4*KB))+1);//plus 1 because 不是整除
+    printf("bm.p: %x\n",p->bm.p);
     ASSERT(p!=NULL);
     p->s_addr=(void*)0x8048000;
 
     p->type=Virtual;
     p->man_sz=0;
+}
+
+void prepare_u_arena_cluster(struct arena_cluster* u_arena_cluster){
+    size_t block_sz=16;
+    for(int i=0;i<CLUSTER_CNT;i++,block_sz*=2){
+        u_arena_cluster[i].block_sz=block_sz;
+        INIT_LIST_HEAD(&(u_arena_cluster[i].lhead));
+        u_arena_cluster[i].block_per_page=(PG_SIZE-sizeof(struct arena))/block_sz;
+    }
 }
 
 void prepare_intr_s(struct intr_s* p,void(*f)()){
@@ -298,4 +313,10 @@ void update_gdt(){
 	asm volatile ("lgdt %0"::"m"(t));
     uint32_t tss_selector=TSS_SELECTOR;
     asm volatile ("ltr %0"::"m"(tss_selector));
+}
+
+static uint32_t next_pid=0;
+//暂时不用去考虑pid的回收，uint32_t够我们用的了
+uint32_t allocate_pid(){
+    return next_pid++;
 }

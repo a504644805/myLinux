@@ -43,3 +43,54 @@ int memcmp(const void *_s1, const void *_s2, size_t n){
     }
     return 0;
 }
+
+
+/* The  strcpy()  function copies the string pointed to by src, including the
+       terminating null byte ('\0'), to the  buffer  pointed  to  by  dest.   The
+       strings  may  not  overlap,  and the destination string dest must be large
+       enough to receive the copy.  Beware of buffer overruns!  (See BUGS.)*/
+char *strcpy(char *dest, const char *src){
+    char* r=dest;
+    while(*(dest++)=*(src++));
+    return r;
+}
+
+/*The strlen() function calculates the length of the string pointed to by s,
+       excluding the terminating null byte ('\0').*/
+size_t strlen(const char *s){
+    int count=0;
+    for(;*s!='\0';s++){
+        count++;
+    }
+    return count;
+}
+
+
+char *uitoa(uint32_t value, char *string, int radix){
+    if(radix<=1||radix>16||string==NULL){
+        return NULL;
+    }
+    else{
+        if(value==0){
+            *string='0';
+        }
+        else{
+            char t[]={'0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f'};
+            char* s=string;
+            for(;value!=0;value/=radix){
+                *s++ = t[value%radix];
+            }
+            //reverse
+            s--;
+            char* s2=string;
+            char temp;
+            for(;s>s2;s--,s2++){
+                temp=*s;
+                *s=*s2;
+                *s2=temp;
+            }
+        }
+        return string;
+    }
+}
+

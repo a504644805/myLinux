@@ -140,7 +140,7 @@ int fprintf(FILE *stream, const char *format, ...){
     va_start(ap,format);
     return vfprintf(stream,format,ap);
 }
-asmlinkage int printf(const char *format, ...){
+int printf(const char *format, ...){
     FILE stdout;
     stdout.fd=1;
     va_list ap;

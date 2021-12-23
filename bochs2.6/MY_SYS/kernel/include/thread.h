@@ -54,8 +54,9 @@ enum TASK_STATUS{ RUNNING,READY,WAITING,HANGING,BLOCKED };
 struct task_struct{
     void* esp;
 
-    enum TASK_STATUS status;
+    uint32_t pid;
 
+    enum TASK_STATUS status;
     list_node tag_s;//挂载在和status相关的队列上
     list_node tag_all;
     int prio;
@@ -64,7 +65,8 @@ struct task_struct{
 
     void* pd;
     struct pool u_vpool;
-    
+    struct arena_cluster u_arena_cluster[7];
+
    int stack_overflow_chk;
 };
 
@@ -76,6 +78,7 @@ void* create_process(void (*f)(), int prio);
 
 void* prepare_pd();
 void prepare_u_vpool(struct pool* p);
+void prepare_u_arena_cluster(struct arena_cluster* u_arena_cluster);
 void prepare_intr_s(struct intr_s* p,void(*f)());
 #define USTACK_PAGE_SIZE 1
 void start_uprocess();
@@ -88,5 +91,8 @@ struct TSS{
 };
 void update_gdt();//在引入用户态后，gdt需添加tss,code3,data3
 
+
+//-------------------------------------------------------------
+uint32_t allocate_pid();
 
 #endif

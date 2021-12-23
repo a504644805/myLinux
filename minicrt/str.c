@@ -22,7 +22,7 @@ int strcmp(const char *s1, const char *s2){
     }
 }
 
-char *itoa(int value, char *string, int radix){
+char *itoa(unsigned int value, char *string, int radix){
     if(radix<=1||radix>16||string==NULL){
         return NULL;
     }

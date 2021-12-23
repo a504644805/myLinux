@@ -45,6 +45,7 @@ static inline int list_empty(struct list_head *head){
 
 
 list_node* list_find(struct list_head* head,list_node* elem);
+list_node* list_pop(struct list_head* head);
 #endif
 
 

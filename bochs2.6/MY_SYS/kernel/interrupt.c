@@ -25,6 +25,7 @@ typedef struct{
 
 static i_g_d_struct idt[IDT_DESC_NUM];
 extern void* int_entry_table[IDT_DESC_NUM];
+void syscall_handler();//in int_handler.S
 void init_idt(){
 	for(int i=0;i<IDT_DESC_NUM;i++){
 		idt[i].offset_low_16_bits=((uint32_t)int_entry_table[i]&0x0000ffff);
@@ -33,6 +34,12 @@ void init_idt(){
 		idt[i].attr=I_G_D_attr;
 		idt[i].offset_high_16_bits=(((uint32_t)int_entry_table[i]&0xffff0000)>>16);
 	}
+	//idt[0x80]=syscall_handler;
+	idt[0x80].offset_low_16_bits=((uint32_t)syscall_handler&0x0000ffff);
+	idt[0x80].selector=SELECTOR_K_CODE;
+	idt[0x80].duse=0;
+	idt[0x80].attr=((I_G_D_P_1<<7)+(I_G_D_DPL_3<<5)+(I_G_D_S_0<<4)+I_G_D_TYPE);
+	idt[0x80].offset_high_16_bits=(((uint32_t)syscall_handler&0xffff0000)>>16);
 }
 
 //中断服务程序具体内容

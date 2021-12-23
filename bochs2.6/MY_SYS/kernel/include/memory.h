@@ -35,6 +35,7 @@ enum K_U_FLAG{
 };
 void init_pool();
 void* malloc_page(enum K_U_FLAG flag,size_t cnt);
+void free_page(void* vaddr,size_t cnt);
 
 void* valloc(enum K_U_FLAG WHICH_VPOOL,size_t cnt);
 void* palloc(enum K_U_FLAG WHICH_PPOOL);
@@ -45,4 +46,32 @@ void* get_pte_addr(void* _vaddr);
 void* get_phy_addr(void* _vaddr);
 void report_init_pool();
 
+
+//----------------------------arena--------------------------
+enum BIG_FLAG {BIG,NOT_BIG};
+struct arena{
+    struct arena_cluster* cluster;
+    enum BIG_FLAG big_flag;
+    size_t cnt;
+
+    int magicNumber;//19985757
+};
+
+struct block_header{
+    list_node lnode;
+};
+struct arena_cluster{
+    size_t block_sz;//16,32,64,128,256,512,1024
+    struct list_head lhead;//双向链表
+
+    size_t block_per_page;
+};
+
+#define CLUSTER_CNT 7
+
+void init_k_arena_cluster();
+void* sys_malloc(size_t sz);
+void sys_free(void* p);
+
+struct arena* block2arena(struct block_header* block_addr);
 #endif

@@ -47,4 +47,6 @@ char *strrchr(const char *s, int c);
 size_t strlen(const char *s);
 
 
+char *uitoa(uint32_t value, char *string, int radix);
+
 #endif

@@ -1,3 +1,5 @@
+#include "list.h"
+#include "stdio.h"
 #include "lib/print.h"
 #include "lib/debug.h"
 #include "lib/string.h"
@@ -6,6 +8,7 @@
 #include "include/memory.h"
 #include "include/thread.h"
 #include "include/lock.h"
+#include "include/syscall.h"
 uint8_t a='a',b='e',c='i';
 void f(void* f_arg);
 void f2(void* f_arg);
@@ -16,9 +19,11 @@ int main(void){
 	put_str("Hi, I am kernel\n");
 
 	init_pool();
+	init_k_arena_cluster();
 	init_interrupt(); //1.init_8259A
 			 		  //2.init_idt
 			 		  //3.lidt	
+	init_syscall_table();
 
 	update_gdt();
 	
@@ -30,7 +35,34 @@ int main(void){
 	create_process(uf2,31);
 
 	init_lock(&console_lock);
+	
 	enable_intr();
+
+	/*
+	disable_intr();
+	void* vaddr=malloc(9000);
+	printf("vaddr: %x\n",vaddr);
+	brk1();
+	*(uint32_t*)vaddr=0x12345678;
+	brk3();
+	free(vaddr);
+	brk2();
+	*/
+	/*
+	disable_intr();
+	void* vaddr=malloc(10);
+	void* vaddr2=malloc(8);
+	printf("vaddr: %x\n",vaddr);
+	printf("vaddr2: %x\n",vaddr2);
+	brk1();
+	*(uint8_t*)vaddr=0x11;
+	*(uint8_t*)vaddr2=0x22;
+	brk3();
+	free(vaddr);
+	brk4();
+	free(vaddr2);
+	brk2();
+	*/
 
 	while(1){
 		lock(&console_lock);
@@ -66,7 +98,7 @@ void f2(void* f_arg){
 		//disable_intr();
 		//put_str(f_arg);
 		put_char(c);
-		//enable_intr();c
+		//enable_intr();
 		//asm volatile("sti");
 		unlock(&console_lock);
 	}

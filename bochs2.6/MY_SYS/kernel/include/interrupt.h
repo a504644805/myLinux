@@ -1,5 +1,6 @@
 #ifndef INTERRUPT_H
 #define INTERRUPT_H
+#include "list.h"
 #include "global.h"
 #include "io.h"
 #include "print.h"

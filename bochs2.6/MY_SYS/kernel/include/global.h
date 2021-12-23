@@ -15,9 +15,11 @@ typedef uint32_t size_t;
 
 #define KB (1024)
 #define MB (1024*1024)
+//整数整除上取整
+#define DIVUP(devidend,devisor) ((devidend+devisor-1)/devisor)
 
 //IDT
-#define IDT_DESC_NUM 48
+#define IDT_DESC_NUM 0x81
 
 #define I_G_D_P_0 0
 #define I_G_D_P_1 1
@@ -75,7 +77,7 @@ typedef uint32_t size_t;
 #define PTE_U 4
 #define PTE_S 0
 
-#define PG_SIZE 4*1024
+#define PG_SIZE (4*1024)
 
 //eflags
 #define EFLAGS_MBS_L (1<<1)
