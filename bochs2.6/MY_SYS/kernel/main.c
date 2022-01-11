@@ -9,6 +9,8 @@
 #include "include/thread.h"
 #include "include/lock.h"
 #include "include/syscall.h"
+#include "ata.h"
+#include "fs.h"
 uint8_t a='a',b='e',c='i';
 void f(void* f_arg);
 void f2(void* f_arg);
@@ -38,6 +40,16 @@ int main(void){
 	
 	enable_intr();
 
+	init_fs();
+
+	extern struct channel ata0_channel;
+	uint8_t* p=(char*)malloc(512);
+	ata_read(1,1,&(ata0_channel.disks[1]),p);
+	for(int i=0;i<512;i++)
+		printf("%x",p[i]);
+	free(p);
+
+
 	/*
 	disable_intr();
 	void* vaddr=malloc(9000);
@@ -63,7 +75,7 @@ int main(void){
 	free(vaddr2);
 	brk2();
 	*/
-
+	while (1);
 	while(1){
 		lock(&console_lock);
 		//asm volatile("cli");
@@ -78,6 +90,7 @@ int main(void){
 	return 0;
 }
 void f(void* f_arg){
+	while(1);
 	while(1){
 		lock(&console_lock);
 		//asm volatile("cli");
@@ -92,6 +105,7 @@ void f(void* f_arg){
 	}
 }
 void f2(void* f_arg){
+	while(1);
 	while(1){
 		lock(&console_lock);
 		//asm volatile("cli");
@@ -105,6 +119,7 @@ void f2(void* f_arg){
 }
 
 void uf(){
+	while(1);
 	while(1){
 		if(b=='h'){
 			b='e';
@@ -115,6 +130,7 @@ void uf(){
 	}
 }
 void uf2(){
+	while(1);
 	while(1){
 		if(c=='n'){
 			c='i';

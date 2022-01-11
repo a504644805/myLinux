@@ -11,6 +11,9 @@
         "io.h": "c",
         "memory.h": "c",
         "syscall.h": "c",
-        "list.h": "c"
+        "list.h": "c",
+        "lock.h": "c",
+        "ata.h": "c",
+        "fs.h": "c"
     }
 }

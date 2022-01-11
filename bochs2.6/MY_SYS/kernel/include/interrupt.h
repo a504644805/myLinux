@@ -21,4 +21,7 @@ INTR_STATUS set_intr_status(INTR_STATUS s);
 INTR_STATUS enable_intr();
 INTR_STATUS disable_intr();
 
+#define INPUT_FREQUENCY 1193180
+#define OUTPUT_FREQUENCY 100
+
 #endif

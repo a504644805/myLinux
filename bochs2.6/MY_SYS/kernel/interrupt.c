@@ -1,4 +1,5 @@
 #include "include/interrupt.h"
+#include "ata.h"
 void init_8259A(){
 	//Master's ICW1~4
 	outb(0x11,0x20);
@@ -10,9 +11,9 @@ void init_8259A(){
 	outb(40,0xa1);
 	outb(0x02,0xa1);
 	outb(0x01,0xa1);
-	//OCW1 mask all except IRQ0,IRQ1
-	outb(0xfc,0x21);
-	outb(0xff,0xa1);
+	//OCW1 mask all except IRQ0,IRQ1,IRQ14,IRQ2
+	outb(0xf8,0x21);
+	outb(0xbf,0xa1);
 }
 
 typedef struct{
@@ -61,10 +62,13 @@ void init_int_content_entry_array(){
 	}
 	int_content_entry_array[32]=time_intr_handler;
 	int_content_entry_array[33]=kbd_intr_handler;
+	int_content_entry_array[46]=ata0_intr_handler;
 }
 
+/*
 #define INPUT_FREQUENCY 1193180
 #define OUTPUT_FREQUENCY 100
+*/
 void set_clock_frequency(){
 	outb(0x34,0x43);
 	outb((uint8_t)(INPUT_FREQUENCY/OUTPUT_FREQUENCY),0x40);

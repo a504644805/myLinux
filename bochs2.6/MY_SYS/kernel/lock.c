@@ -45,9 +45,6 @@ void block(enum TASK_STATUS status){
     next->status=RUNNING;
     __list_del((next->tag_s).prev,(next->tag_s).next);
     next->elapsed_ticks=0;
-    
-    //protect environment
-    asm volatile("pushfl;push %%ds;push %%es;push %%fs;push %%gs;push %%ss;pusha"::);
 
     //lcr3 and update tss
     uint32_t pd_paddr;
@@ -60,7 +57,9 @@ void block(enum TASK_STATUS status){
     asm volatile("movl %0,%%cr3"::"a"(pd_paddr));
     tss.esp0=(uint32_t)((void*)next+4*KB);
     tss.ss0=SELECTOR_K_DATA;
-
+    
+    //protect environment
+    asm volatile("pushfl;push %%ds;push %%es;push %%fs;push %%gs;push %%ss;pusha"::);
     switch_to(cur,next);
     //restore environment   <-- back to here after being wake_up and reschdule
     asm volatile("popa;pop %%ss;pop %%gs;pop %%fs;pop %%es;pop %%ds;popfl"::);

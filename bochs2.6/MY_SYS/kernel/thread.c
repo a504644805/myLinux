@@ -116,7 +116,7 @@ void* create_process(void (*f)(), int prio){
         void* f;
         void* f_arg;
     };
-    pcb->esp-=sizeof(struct intr_s);//never use: create_process, fork时才会有此操作，此处只是为了统一(习惯了)
+    pcb->esp-=sizeof(struct intr_s);
     pcb->esp-=sizeof(struct s);
     struct s* p=(struct s*)(pcb->esp);
     p->f_wrapper=start_uprocess;//DIFF.2
@@ -206,7 +206,6 @@ void* prepare_pd(){
 void prepare_u_vpool(struct pool* p){
     p->bm.byte_len=(0xc0000000-0x8048000)/(4*KB)/8;//luckily 是整除
     p->bm.p=malloc_page(K,((p->bm.byte_len)/(4*KB))+1);//plus 1 because 不是整除
-    printf("bm.p: %x\n",p->bm.p);
     ASSERT(p!=NULL);
     p->s_addr=(void*)0x8048000;
 
@@ -319,4 +318,47 @@ static uint32_t next_pid=0;
 //暂时不用去考虑pid的回收，uint32_t够我们用的了
 uint32_t allocate_pid(){
     return next_pid++;
+}
+
+void thread_yeild(){
+    enum INTR_STATUS s=disable_intr();
+    struct task_struct* cur=get_cur_running();
+    cur->status=READY;
+    ASSERT(list_find(&ready_list,&(cur->tag_s))==0);
+    list_add_tail(&(cur->tag_s),&ready_list);
+
+    //same as block
+    struct task_struct* next=schedule();
+    next->status=RUNNING;
+    __list_del((next->tag_s).prev,(next->tag_s).next);
+    next->elapsed_ticks=0;
+
+    //lcr3 and update tss
+    uint32_t pd_paddr;
+    if(next->pd!=NULL){//uprocess
+        pd_paddr=(uint32_t)get_phy_addr(next->pd);
+    }
+    else{
+        pd_paddr=0x100000;
+    }
+    asm volatile("movl %0,%%cr3"::"a"(pd_paddr));
+    tss.esp0=(uint32_t)((void*)next+4*KB);
+    tss.ss0=SELECTOR_K_DATA;
+    
+    //protect environment
+    asm volatile("pushfl;push %%ds;push %%es;push %%fs;push %%gs;push %%ss;pusha"::);
+    switch_to(cur,next);
+    //restore environment   <-- back to here after being wake_up and reschdule
+    asm volatile("popa;pop %%ss;pop %%gs;pop %%fs;pop %%es;pop %%ds;popfl"::);
+
+    set_intr_status(s);
+}
+
+//if ms<10ms, thread won't call thread_yeild
+void thread_sleep(size_t ms){
+    uint32_t t=SYS_ELAPSED_TIME;
+    uint32_t tick=OUTPUT_FREQUENCY/1000*ms;
+    while(t+tick>SYS_ELAPSED_TIME){
+        thread_yeild();
+    }
 }

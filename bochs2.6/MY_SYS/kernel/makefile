@@ -1,7 +1,7 @@
 #C #include文件查找流程: 使用双引号表示首先在当前的源文件目录中查找，若未找到才到包含目录中去查找
 CFLAGS=-fno-builtin -Wall -W -Wstrict-prototypes -Wmissing-prototypes
 KERNEL_PATH=/home/xy/myLinux/bochs2.6/MY_SYS/kernel
-INCLUDE_FLAG=-I $(KERNEL_PATH)/include -I $(KERNEL_PATH)/lib -I $(KERNEL_PATH)/dev
+INCLUDE_FLAG=-I $(KERNEL_PATH)/include -I $(KERNEL_PATH)/lib -I $(KERNEL_PATH)/dev -I $(KERNEL_PATH)/fs
 all:
 	gcc -m32 -c main.c -o build/main.o $(INCLUDE_FLAG) -fno-builtin
 	gcc -m32 -c interrupt.c -o build/interrupt.o $(INCLUDE_FLAG) -fno-builtin -fno-stack-protector
@@ -14,12 +14,15 @@ all:
 	gcc -m32 -c dev/keyboard.c -o build/keyboard.o $(INCLUDE_FLAG) -fno-builtin
 	gcc -m32 -c syscall.c -o build/syscall.o $(INCLUDE_FLAG) -fno-builtin
 	gcc -m32 -c lib/stdio.c -o build/stdio.o $(INCLUDE_FLAG) -fno-builtin -fno-stack-protector
+	gcc -m32 -c dev/ata.c -o build/ata.o $(INCLUDE_FLAG) -fno-builtin -fno-stack-protector
+	gcc -m32 -c lib/bitmap.c -o build/bitmap.o $(INCLUDE_FLAG) -fno-builtin -fno-stack-protector
+	gcc -m32 -c fs/fs.c -o build/fs.o $(INCLUDE_FLAG) -fno-builtin -fno-stack-protector
 
 	nasm -f elf int_handler.S -o build/int_handler.o
 	nasm -f elf lib/print.S -o build/print.o -I include/
 	nasm -f elf switch_to.S -o build/switch_to.o
 
-	ld -melf_i386 -Ttext 0xc0001500 -e main build/main.o build/print.o build/int_handler.o build/interrupt.o build/debug.o build/string.o build/memory.o build/thread.o build/switch_to.o build/list.o build/lock.o build/keyboard.o build/syscall.o build/stdio.o -o build/a.out
+	ld -melf_i386 -Ttext 0xc0001500 -e main build/main.o build/print.o build/int_handler.o build/interrupt.o build/debug.o build/string.o build/memory.o build/thread.o build/switch_to.o build/list.o build/lock.o build/keyboard.o build/syscall.o build/stdio.o build/ata.o build/bitmap.o build/fs.o -o build/a.out
 
 	objdump -s -j .text -d build/a.out  > /home/xy/t
 write:

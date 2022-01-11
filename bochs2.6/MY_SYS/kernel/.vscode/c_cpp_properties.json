@@ -7,7 +7,8 @@
                 "/home/xy/myLinux/bochs2.6/MY_SYS/kernel",
                 "/home/xy/myLinux/bochs2.6/MY_SYS/kernel/include",
                 "/home/xy/myLinux/bochs2.6/MY_SYS/kernel/lib",
-                "/home/xy/myLinux/bochs2.6/MY_SYS/kernel/dev"
+                "/home/xy/myLinux/bochs2.6/MY_SYS/kernel/dev",
+                "/home/xy/myLinux/bochs2.6/MY_SYS/kernel/fs"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/gcc",

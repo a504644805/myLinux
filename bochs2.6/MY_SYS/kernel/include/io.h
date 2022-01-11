@@ -14,4 +14,15 @@ static inline void outb(uint8_t al,uint16_t dx){
 	asm volatile("outb %%al,%%dx"::"a"(al),"d"(dx));
 }
 
+//rep dx --2B--> es:edi, edi+=2
+//cnt port			dst
+static inline void rep_insw(uint16_t port,char* buf,size_t cnt){
+	asm volatile("cld; rep insw":"+D"(buf),"+c"(cnt):"d"(port):"memory");
+}
+
+//rep ds:esi --2B--> dx, esi+=2
+static inline void rep_outsw(uint16_t port,char* buf,size_t cnt){
+	asm volatile("cld; rep outsw":"+S"(buf),"+c"(cnt):"d"(port):"memory");
+}
+
 #endif

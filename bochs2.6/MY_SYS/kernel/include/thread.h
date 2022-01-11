@@ -95,4 +95,6 @@ void update_gdt();//在引入用户态后，gdt需添加tss,code3,data3
 //-------------------------------------------------------------
 uint32_t allocate_pid();
 
+void thread_yeild();
+void thread_sleep(size_t ms);
 #endif
