@@ -51,6 +51,7 @@ struct intr_s{
 };
 
 enum TASK_STATUS{ RUNNING,READY,WAITING,HANGING,BLOCKED };
+#define MAX_PROCESS_OPEN_FILE 8
 struct task_struct{
     void* esp;
 
@@ -66,6 +67,8 @@ struct task_struct{
     void* pd;
     struct pool u_vpool;
     struct arena_cluster u_arena_cluster[7];
+
+    uint32_t process_open_file[MAX_PROCESS_OPEN_FILE];
 
    int stack_overflow_chk;
 };

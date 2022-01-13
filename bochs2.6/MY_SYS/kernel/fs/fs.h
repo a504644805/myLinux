@@ -58,6 +58,8 @@ struct super_block{
     char pad[512-4*8];
 }__attribute__((packed));
 
+#define LEVEL1_REFERENCE 12
+#define LEVEL2_REFERENCE 1
 struct inode{
     //inode读入内存后的管理
     uint32_t cnt;
@@ -78,14 +80,14 @@ struct dir{
     struct inode* i_p;
 };
 
-#define MAX_FILENAME_LEN 10
+#define MAX_FILENAME_LEN 12
 enum FILE_TYPE{
     UNKNOWN,
     NORMAL,
     DIR
 };
 struct dir_entry{
-    char filename[10];
+    char filename[MAX_FILENAME_LEN];
     uint32_t ino;
 
     enum FILE_TYPE ftype;//unknown means this entry is empty(invalid)
@@ -98,6 +100,8 @@ struct dir_entry{
 const static uint32_t inode_per_sect=SECT_SIZE/(sizeof(struct inode));
 const static uint32_t inode_sects=DIVUP(MAX_FILE_NUM,(SECT_SIZE/(sizeof(struct inode))));
 const static uint32_t ib_sects=DIVUP(MAX_FILE_NUM/8.0,SECT_SIZE);
+const static uint32_t bits_per_sect=SECT_SIZE*8;
+const static uint32_t dir_entry_per_sect=SECT_SIZE/(sizeof(struct dir_entry));
 
 void init_ata_struct();
 void format_partition(struct partition* parti);
@@ -108,32 +112,60 @@ void init_fs();
 struct inode_pos{
     uint32_t sec_no;
     uint32_t byte_offset;
+    uint32_t inode_offset;
 };
 void init_inode(struct inode* p);
 struct inode* inode_open(struct partition* parti, uint32_t ino);
+void inode_close(struct inode* inode, struct partition* parti);
 struct inode_pos locate_inode(struct partition* parti, uint32_t ino);
+void sync_inode(struct inode inode,struct partition* parti);
 
-//-----------------asist function------------------
-void format_partition_show_s_b_info(struct partition* parti,struct super_block* s_b);
-void set_default_partition_show_parti(struct partition* parti);
+//-------------------asist function-----------------
 void show_init_fs_result(struct partition* parti);
+void print_dir(struct dir dir,struct partition* parti,uint32_t cnt);
+void print_dir_entry(struct dir_entry dir_entry);
+void print_inode_list(struct partition* parti);
+void print_inode_in_disk(struct partition* parti, uint32_t cnt);
+void print_inode(struct inode* inode);
+void print_bm_in_parti(struct partition* parti,uint32_t type,uint32_t cnt);
+void print_bm(struct bitmap* bm,uint32_t cnt);
+
+//--------------------sys_open----------------------
+enum OFLAGS{
+    O_RDONLY,O_WRONLY,O_RDWR,O_CREAT = 4
+};
+uint32_t sys_open(const char *path, int flags);
+bool search_file_with_path(const char* path,struct dir_entry* dir_entry);
+bool search_file_in_dir(char* filename,struct dir* dir,struct partition* parti,struct dir_entry* rt_dir_entry);
+
+const char* parse_path(const char* path,char* stored_name);
+uint32_t parse_path_depth(const char* path);
+void parse_path_lastname(const char* path,char* lastname);
+
+enum FS_BM_TYPE{
+    INODE_BITMAP,DATA_BITMAP
+};
+void sync_bm(struct partition* parti, uint32_t idx, uint32_t type);
+
+//------------------dir operation-------------------
+struct dir dir_open(uint32_t ino,struct partition* parti);
+void dir_close(struct dir dir, struct partition* parti);
+void dir_add_dir_entry_and_sync(struct dir* dir,struct dir_entry* dir_entry,struct partition* parti);
+
+//---------------打开文件表 operation-----------------
+//#define MAX_PROCESS_OPEN_FILE 8 ---defined in thread.h
+#define MAX_SYSTEM_OPEN_FILE 32
+struct file{
+    uint32_t cnt;//not used yet
+    uint32_t flags;
+    struct inode* i_p;
+    uint32_t offset;
+};
+uint32_t get_free_fd_from_process_ofile_table();
+uint32_t get_free_slot_from_system_ofile_table();
 
 //
-/*
-The open() system call opens the file specified by pathname.  If the specified file does not exist, it may optionally (if O_CREAT is specified in flags) be created by open(). The return value of open() is a file descriptor */
-uint32_t sys_open(const char *pathname, int flags){
-    
-
-
-}
-
-
-
-
-
-
-
-
+void sys_close(uint32_t fd);
 
 #endif
 

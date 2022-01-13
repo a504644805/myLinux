@@ -55,6 +55,35 @@ char *strcpy(char *dest, const char *src){
     return r;
 }
 
+/*The  strcmp()  function compares the two strings s1 and s2.  It returns an
+       integer less than, equal to, or greater than zero if s1 is found,  respec‐
+       tively, to be less than, to match, or be greater than s2.*/
+int strcmp(const char *s1, const char *s2){
+    while(*s1 && *s2){
+        if(*s1 == *s2){
+            s1++;
+            s2++;
+            continue;
+        }
+        else{
+            return *s1-*s2;
+        }
+    }
+    //有一方先读完
+    if(!(*s1) && !(*s2)){
+        return 0;
+    }
+    else if(!(*s1)){
+        return -1;
+    }
+    else if(!(*s2)){
+        return 1;
+    }
+    else{
+        ASSERT(1==2);
+    }
+}
+
 /*The strlen() function calculates the length of the string pointed to by s,
        excluding the terminating null byte ('\0').*/
 size_t strlen(const char *s){
@@ -93,4 +122,5 @@ char *uitoa(uint32_t value, char *string, int radix){
         return string;
     }
 }
+
 
