@@ -46,11 +46,20 @@ int main(void){
 	extern struct dir root_dir;
 	extern struct partition* default_parti;
 	struct dir_entry dir_entry={"normal1",1,NORMAL};
+	char str_buf[20];
 
 	brk5();
 	uint32_t fd1=sys_open("/file1",O_CREAT|O_RDWR);
 	printf("fd1: %d\n",fd1);
 	print_inode_list(default_parti);
+	brk5();
+	sys_write_new(fd1,"aabbccdd",8);
+	print_inode_list(default_parti);
+	brk5();
+	sys_close(fd1);
+	sys_unlink("/file1");
+	brk5();
+
 	brk5();
 	uint32_t fd2=sys_open("/file1",O_CREAT|O_RDWR);
 	printf("fd2: %d\n",fd2);

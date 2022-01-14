@@ -134,10 +134,9 @@ void set_default_parti(struct partition* parti){
     ata_read(parti->s_b->db_sects,parti->s_b->db_start_lba,parti->disk,parti->db.p);
 
     INIT_LIST_HEAD(&(parti->inode_list));
-    root_dir.i_p=inode_open(parti,0);
-
+    root_dir;
+    
     default_parti=parti;
-    show_init_fs_result(default_parti);
 }
 
 extern struct file sys_open_file[MAX_SYSTEM_OPEN_FILE];
@@ -156,7 +155,8 @@ void init_fs(){
 
     for (size_t i = 0; i < MAX_SYSTEM_OPEN_FILE; i++)
         sys_open_file[i].i_p=NULL;
-    
+
+    show_init_fs_result(default_parti);
 }
 
 //------------------inode operation--------------------
@@ -380,7 +380,7 @@ bool search_file_with_path(const char* path,struct dir_entry* dir_entry){//无�
     char stored_name[MAX_FILENAME_LEN];
     uint32_t path_depth=parse_path_depth(path);
     
-    struct dir cur_dir={root_dir.i_p};
+    struct dir cur_dir=dir_open(0,default_parti);//open root_dir
     strcpy(dir_entry->filename,"/");
     dir_entry->ino=0;
     dir_entry->ftype=DIR;
@@ -485,6 +485,24 @@ void parse_path_lastname(const char* path,char* lastname){
     parse_path(path,lastname);
 }
 
+// input:  dir1/dir2/file
+// output: dir1/dir2
+void parse_path_dir_path(const char* path,char* dir_path){
+    char stored_name[MAX_FILENAME_LEN];
+    const char* path_backup=path;
+    uint32_t depth = parse_path_depth(path);
+    for (size_t i = 1; i <= depth-1; i++){
+        path=parse_path(path,stored_name);
+    }
+    strcpy(dir_path,path);
+
+    // dir1/dir2/file
+    //          |
+    // path point to here now
+    dir_path[(uint32_t)path-(uint32_t)path_backup]=0;
+}
+
+
 /*
 enum FS_BM_TYPE{
     INODE_BITMAP,
@@ -514,6 +532,7 @@ struct dir dir_open(uint32_t ino,struct partition* parti){
 }
 void dir_close(struct dir dir, struct partition* parti){
     if(dir.i_p->ino==0){
+        dir.i_p->cnt--;
         return;
     }
     else{
@@ -570,7 +589,39 @@ void dir_add_dir_entry_and_sync(struct dir* dir,struct dir_entry* dir_entry,stru
     sys_free((void*)dir_entry_array);
     return;
 }
+void dir_delete_dir_entry_and_sync(uint32_t dir_ino,char* filename,struct partition* parti){
+    //缺点:  1.由于search_file_in_dir未返回查找到的dir_entry的位置信息(第几块，第几个表项)，因此没能复用
+    //      2.未考虑目录所占块的回收
+    struct dir dir=dir_open(dir_ino,parti);
+    ASSERT(dir.i_p->cnt==1);//assert no one else has open the dir
+    struct dir_entry* dir_entry_array=(struct dir_entry*)sys_malloc(SECT_SIZE);
+    ASSERT(dir_entry_array!=NULL);
 
+    //先找12个一级索引
+    for (size_t i = 0; i < LEVEL1_REFERENCE; i++){
+        if(dir.i_p->lba[i]==-1){
+            continue;
+        }
+        else{
+            ata_read(1,dir.i_p->lba[i],parti->disk,(char*)dir_entry_array);
+            for (size_t j = 0; j < dir_entry_per_sect; j++){
+                if(dir_entry_array[j].ftype!=UNKNOWN && strcmp(dir_entry_array[j].filename,filename)==0){
+                    memset((void*)(&(dir_entry_array[j])),0,sizeof(struct dir_entry));//delete the dir_entry
+                    ata_write(1,dir.i_p->lba[i],parti->disk,(char*)dir_entry_array);//sync
+                    sys_free((void*)dir_entry_array);
+                    return;
+                }
+                else{
+                    continue;
+                }
+            }
+        }
+    }
+    //二级索引对应的128块
+    //累，先假设目录不超过12块
+    dir_close(dir,parti);
+    ASSERT(1==2);//查找失败
+}
 //----------------------打开文件表 operation---------------------
 struct file sys_open_file[MAX_SYSTEM_OPEN_FILE];
 uint32_t get_free_fd_from_process_ofile_table(){
@@ -591,7 +642,7 @@ uint32_t get_free_slot_from_system_ofile_table(){
     return -1;
 }
 
-//
+//----------------------file operation(再加上上面的sys_open)----------------------
 void sys_close(uint32_t fd){
     ASSERT(fd>=3);
     struct task_struct* t_s=get_cur_running();
@@ -606,3 +657,211 @@ void sys_close(uint32_t fd){
     sys_open_file[sys_ofile_idx].offset=0;
     t_s->process_open_file[fd]=-1;
 }
+
+/*
+enum FD_TYPE{
+    STD_IN,STD_OUT,STD_ERROUT
+};*/
+//从offset开始写内容，对于超过混合索引所支持最大容量的情况assert掉, 若成功返回的一定是count
+int sys_write_new(int fd, const void *buf, size_t count){//用于取代syscall.c的sys_write，修改调用了sys_write地方
+    if(count==0) return 0;
+    ASSERT(fd>=0 && fd!=STD_IN && fd!=STD_ERROUT);
+    if(fd==STD_OUT){
+        ASSERT(strlen((char*)buf)<=count);
+        char* p=(char*)sys_malloc(count);
+        ASSERT(p!=NULL);
+        memcpy((void*)p,(void*)buf,count);
+        put_str(p);//
+        sys_free(p);
+    }
+    else{
+        uint32_t sys_ofile_idx,offset;
+        struct inode* i_p;
+        struct task_struct* t_s=get_cur_running();
+        ASSERT(t_s->process_open_file[fd]!=-1);
+        sys_ofile_idx=t_s->process_open_file[fd];
+        ASSERT(sys_open_file[sys_ofile_idx].i_p!=NULL);
+        ASSERT((sys_open_file[sys_ofile_idx].flags&O_RDWR) || (sys_open_file[sys_ofile_idx].flags&O_WRONLY));
+        i_p=sys_open_file[sys_ofile_idx].i_p;
+        offset=sys_open_file[sys_ofile_idx].offset;
+        ASSERT(offset+count<=LEVEL1_REFERENCE*SECT_SIZE);//暂不考虑二级索引
+    
+        /*
+        lba[]的盘块号不一定连续，但有数据的情况是连续的:
+        lba[0]=123  [1]=42  [2]=311  [3]=-1  [4]=-1
+        有数据........................无数据........
+        */
+        const uint32_t total_sect=DIVUP((offset+count),SECT_SIZE);
+        const uint32_t already_allocated_sect_num=DIVUP((i_p->filesz),SECT_SIZE);
+        uint32_t first_negtive_1=0;
+        for (;first_negtive_1 < LEVEL1_REFERENCE; first_negtive_1++)
+            if(i_p->lba[first_negtive_1]==-1)
+                break;
+        ASSERT(first_negtive_1==already_allocated_sect_num);
+
+        const uint32_t malloc_sect=total_sect-offset/SECT_SIZE;
+        const uint32_t s_idx=offset/SECT_SIZE;//读出来，改好，写回去
+        const uint32_t e_idx=s_idx+malloc_sect-1;
+        //db
+        if(total_sect>already_allocated_sect_num){
+            for (size_t i = first_negtive_1; i < total_sect; i++){
+                uint32_t db_idx=scan_bm(&(default_parti->db),1);
+                ASSERT(db_idx!=-1);
+                set_bit_bm(&(default_parti->db),db_idx);
+                sync_bm(default_parti,db_idx,DATA_BITMAP);
+                i_p->lba[i]=db_idx+default_parti->s_b->data_start_lba;
+            }
+        }
+        //D 核心内容
+        void* _buf_=sys_malloc(malloc_sect*SECT_SIZE);
+        ASSERT(_buf_!=NULL);
+        ata_read(1,i_p->lba[s_idx],default_parti->disk,_buf_);
+        ata_read(1,i_p->lba[e_idx],default_parti->disk,_buf_+(e_idx-s_idx)*SECT_SIZE);
+        memcpy(_buf_+offset%SECT_SIZE,buf,count);
+        for (size_t i = 0; i < malloc_sect; i++){
+            ata_write(1,i_p->lba[s_idx+i],default_parti->disk,_buf_+i*SECT_SIZE);
+        }
+        sys_free(_buf_);
+
+        //打开文件表 I
+        sys_open_file[sys_ofile_idx].offset+=count;
+
+        i_p->filesz=((offset+count)>(i_p->filesz))?(offset+count):(i_p->filesz);
+        i_p->lba;//已在上面更新
+        sync_inode(*i_p,default_parti);
+    }
+
+    return count;
+}
+
+//若已读完(offset==filesz)则返回-1
+//若剩余可读字节数＜count则读完并返回所读字节数
+int sys_read(int fd, void *buf, size_t count){
+    ASSERT(fd>=3);
+    uint32_t sys_ofile_idx,offset;
+    struct inode* i_p;
+    struct task_struct* t_s=get_cur_running();
+    ASSERT(t_s->process_open_file[fd]!=-1);
+    sys_ofile_idx=t_s->process_open_file[fd];
+    ASSERT(sys_open_file[sys_ofile_idx].i_p!=NULL);
+    ASSERT(!(sys_open_file[sys_ofile_idx].flags&O_WRONLY));
+    i_p=sys_open_file[sys_ofile_idx].i_p;
+    offset=sys_open_file[sys_ofile_idx].offset;
+    ASSERT(offset<=i_p->filesz);
+    
+    if(offset==i_p->filesz){
+        return EOF;
+    }
+    else{
+        if((offset+count)>(i_p->filesz)){
+            count=i_p->filesz-offset;
+        }
+        else{
+        }
+    }
+    
+    /*
+    lba[]的盘块号不一定连续，但有数据的情况是连续的:
+    lba[0]=123  [1]=42  [2]=311  [3]=-1  [4]=-1
+    有数据........................无数据........
+    */
+    const uint32_t total_sect=DIVUP((offset+count),SECT_SIZE);
+    const uint32_t already_allocated_sect_num=DIVUP((i_p->filesz),SECT_SIZE);
+    
+    const uint32_t malloc_sect=total_sect-offset/SECT_SIZE;
+    const uint32_t s_idx=offset/SECT_SIZE;
+    const uint32_t e_idx=s_idx+malloc_sect-1;
+
+    //核心内容
+    void* _buf_=sys_malloc(malloc_sect*SECT_SIZE);
+    ASSERT(_buf_!=NULL);
+    for (size_t i = 0; i < malloc_sect; i++){
+        ata_read(1,i_p->lba[s_idx+i],default_parti->disk,_buf_+i*SECT_SIZE);
+    }
+    memcpy(buf,_buf_+offset%SECT_SIZE,count);
+    sys_free(_buf_);
+
+    //打开文件表
+    sys_open_file[sys_ofile_idx].offset+=count;
+
+    return count;
+}
+
+/*
+enum WHENCE_TYPE{
+    SEEK_SET,SEEK_CUR,SEEK_END
+};*/
+// whence: from where
+// set sys_ofile's offset and rt the new offset
+uint32_t sys_lseek(int fd, int offset, enum WHENCE_TYPE whence){
+    ASSERT(fd>=3);
+    uint32_t sys_ofile_idx,cur_offset;
+    struct inode* i_p;
+    struct task_struct* t_s=get_cur_running();
+    ASSERT(t_s->process_open_file[fd]!=-1);
+    sys_ofile_idx=t_s->process_open_file[fd];
+    ASSERT(sys_open_file[sys_ofile_idx].i_p!=NULL);
+    i_p=sys_open_file[sys_ofile_idx].i_p;
+    cur_offset=sys_open_file[sys_ofile_idx].offset;
+
+    int new_offset;
+    switch (whence){
+    case SEEK_SET:
+        new_offset=offset;
+        break;
+    case SEEK_CUR:
+        new_offset=cur_offset+offset;
+        break;
+    case SEEK_END:
+        new_offset=i_p->filesz+offset;
+        break;
+    default:
+        ASSERT(1==2);
+    }
+    ASSERT(new_offset>=0 && new_offset<=i_p->filesz)
+    sys_open_file[sys_ofile_idx].offset=new_offset;
+    return new_offset;
+}
+
+//sys_open和sys_unlink只能创和删普通文件，涉及目录有专门操作
+//和Linux不同，miniOS的inode中无硬链接数，直接删
+// dir1/dir2/file1
+void sys_unlink(const char *pathname){
+    struct dir_entry dir_entry;
+    ASSERT(search_file_with_path(pathname,&dir_entry));
+    struct inode* inode=inode_open(default_parti,dir_entry.ino);
+    //打开文件表
+    ASSERT(inode->cnt==1);//ASSERT no one else has open this file
+    //ib
+    clear_bit_bm(&(default_parti->ib),inode->ino);
+    sync_bm(default_parti,inode->ino,INODE_BITMAP);
+    //db
+    for (size_t i = 0; i < LEVEL1_REFERENCE; i++){
+        if(inode->lba[i]!=-1){
+            uint32_t db_idx=(inode->lba[i])-(default_parti->s_b->data_start_lba);
+            clear_bit_bm(&(default_parti->db),db_idx);
+            sync_bm(default_parti,db_idx,DATA_BITMAP);
+        }
+        else{
+        }
+    }
+    //D--dir
+    char filename[MAX_FILENAME_LEN];
+    parse_path_lastname(pathname,filename);
+    uint32_t dir_ino=({
+        //利用search_file_with_path rt 0的情况获得父目录的ino.  not beautiful though 
+        char un_exist_filename[MAX_FILENAME_LEN]="__UNEXIST__";
+        char search_path[MAX_PATH_LEN];
+        parse_path_dir_path(pathname,search_path);
+        strcat(search_path,"/");
+        strcat(search_path,un_exist_filename);
+        struct dir_entry dir_entry;
+        ASSERT(!search_file_with_path(search_path,&dir_entry));
+        dir_entry.ino;
+    });
+
+    dir_delete_dir_entry_and_sync(dir_ino,filename,default_parti);
+    
+    inode_close(inode,default_parti);
+}
+

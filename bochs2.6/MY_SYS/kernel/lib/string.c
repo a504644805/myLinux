@@ -55,6 +55,19 @@ char *strcpy(char *dest, const char *src){
     return r;
 }
 
+/*The strcat() function appends the src string to the dest string, overwrit‐
+       ing the terminating null byte ('\0') at the end of dest, and then  adds  a
+       terminating  null  byte.  The strings may not overlap, and the dest string
+       must have enough space for the result.*/
+char *strcat(char *dest, const char *src){
+    ASSERT(dest!=NULL && src!=NULL);
+    char* str = dest;
+    while (*str++);
+    --str;
+    while((*str++ = *src++)); 
+    return dest;
+}
+
 /*The  strcmp()  function compares the two strings s1 and s2.  It returns an
        integer less than, equal to, or greater than zero if s1 is found,  respec‐
        tively, to be less than, to match, or be greater than s2.*/

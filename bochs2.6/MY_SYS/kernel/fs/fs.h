@@ -81,6 +81,7 @@ struct dir{
 };
 
 #define MAX_FILENAME_LEN 12
+#define MAX_PATH_LEN MAX_FILENAME_LEN*4
 enum FILE_TYPE{
     UNKNOWN,
     NORMAL,
@@ -164,8 +165,19 @@ struct file{
 uint32_t get_free_fd_from_process_ofile_table();
 uint32_t get_free_slot_from_system_ofile_table();
 
-//
+//---------file operation(再加上上面的sys_open)----------
+#define EOF -1
+enum FD_TYPE{
+    STD_IN,STD_OUT,STD_ERROUT
+};
+enum WHENCE_TYPE{
+    SEEK_SET,SEEK_CUR,SEEK_END
+};
 void sys_close(uint32_t fd);
+int sys_write_new(int fd, const void *buf, size_t count);
+int sys_read(int fd, void *buf, size_t count);
+uint32_t sys_lseek(int fd, int offset, enum WHENCE_TYPE whence);
+void sys_unlink(const char *pathname);
 
 #endif
 
