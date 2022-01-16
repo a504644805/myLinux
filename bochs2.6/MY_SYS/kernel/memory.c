@@ -176,7 +176,8 @@ void report_init_pool(){
 //---------------free_page-------------------
 void free_page(void* vaddr,size_t cnt){
     struct task_struct* cur=get_cur_running();
-    ASSERT(((uint32_t)vaddr>=0x8048000&&(uint32_t)vaddr<0xc0000000&&cur->pd) || ((uint32_t)vaddr>=0xc0100000&&cur->pd==NULL));
+    //ASSERT(((uint32_t)vaddr>=0x8048000&&(uint32_t)vaddr<0xc0000000&&cur->pd) || ((uint32_t)vaddr>=0xc0100000&&cur->pd==NULL));
+    ASSERT(((uint32_t)vaddr>=0x8048000&&(uint32_t)vaddr<0xc0000000&&cur->pd) || ((uint32_t)vaddr>=0xc0100000));
     ASSERT(((uint32_t)vaddr&0x00000fff)==0);
 
     enum K_U_FLAG k_u_flag=((uint32_t)vaddr>=0xc0100000)?K:U;
@@ -232,7 +233,7 @@ void init_k_arena_cluster(){
 
 void* sys_malloc(size_t sz){
     struct task_struct* cur=get_cur_running();
-    enum K_U_FLAG k_u_flag=(cur->pd)?U:K;
+    const enum K_U_FLAG k_u_flag=(cur->pd)?U:K;
     struct arena_cluster* arena_cluster=(k_u_flag==K)?(k_arena_cluster):(cur->u_arena_cluster);
     struct arena* a;
     if(sz>1024){
@@ -259,7 +260,8 @@ void* sys_malloc(size_t sz){
                 ASSERT(list_find(&(arena_cluster[idx].lhead),&(((struct block_header*)p)->lnode)));
             }
         }
-        else{}
+        else{
+        }
         ASSERT(!list_empty(&(arena_cluster[idx].lhead)));
         struct block_header* rt=container_of(list_pop(&(arena_cluster[idx].lhead)),struct block_header,lnode);
         a=block2arena(rt);

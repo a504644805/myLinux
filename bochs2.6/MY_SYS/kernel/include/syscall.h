@@ -10,6 +10,7 @@ void init_syscall_table();
 #define SYS_WRITE 1
 #define SYS_MALLOC 2
 #define SYS_FREE 3
+#define SYS_FORK 4
 uint32_t sys_getpid();
 //On success, the number of bytes written  is  returned
 uint32_t sys_write(const char* s);
@@ -26,6 +27,7 @@ uint32_t sys_write(const char* s);
     asm volatile("int $0x80":"=a"(retval):"a"(num),"b"(arg1));\
     retval;\
 })
+int fork();
 uint32_t getpid();
 uint32_t write(const char* s);
 void* malloc(size_t sz);

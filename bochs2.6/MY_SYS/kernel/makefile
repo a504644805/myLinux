@@ -17,12 +17,13 @@ all:
 	gcc -m32 -c dev/ata.c -o build/ata.o $(INCLUDE_FLAG) -fno-builtin -fno-stack-protector
 	gcc -m32 -c lib/bitmap.c -o build/bitmap.o $(INCLUDE_FLAG) -fno-builtin -fno-stack-protector
 	gcc -m32 -c fs/fs.c -o build/fs.o $(INCLUDE_FLAG) -fno-builtin -fno-stack-protector
+	gcc -m32 -c fork_exec_wait_exit.c -o build/fork_exec_wait_exit.o $(INCLUDE_FLAG) -fno-builtin -fno-stack-protector
 
 	nasm -f elf int_handler.S -o build/int_handler.o
 	nasm -f elf lib/print.S -o build/print.o -I include/
 	nasm -f elf switch_to.S -o build/switch_to.o
 
-	ld -melf_i386 -Ttext 0xc0001500 -e main build/main.o build/print.o build/int_handler.o build/interrupt.o build/debug.o build/string.o build/memory.o build/thread.o build/switch_to.o build/list.o build/lock.o build/keyboard.o build/syscall.o build/stdio.o build/ata.o build/bitmap.o build/fs.o -o build/a.out
+	ld -melf_i386 -Ttext 0xc0001500 -e main build/main.o build/print.o build/int_handler.o build/interrupt.o build/debug.o build/string.o build/memory.o build/thread.o build/switch_to.o build/list.o build/lock.o build/keyboard.o build/syscall.o build/stdio.o build/ata.o build/bitmap.o build/fs.o build/fork_exec_wait_exit.o -o build/a.out
 
 	objdump -s -j .text -d build/a.out  > /home/xy/t
 write:

@@ -55,8 +55,6 @@ enum TASK_STATUS{ RUNNING,READY,WAITING,HANGING,BLOCKED };
 struct task_struct{
     void* esp;
 
-    uint32_t pid;
-
     enum TASK_STATUS status;
     list_node tag_s;//挂载在和status相关的队列上
     list_node tag_all;
@@ -71,7 +69,9 @@ struct task_struct{
     uint32_t process_open_file[MAX_PROCESS_OPEN_FILE];
     uint32_t cwd_ino;
 
-   int stack_overflow_chk;
+    uint32_t pid;
+    uint32_t ppid;
+    int stack_overflow_chk;
 };
 
 //--------------after we introduce 用户态----------------------

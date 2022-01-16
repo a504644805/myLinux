@@ -32,6 +32,7 @@ void make_main_thread(){
 
     struct task_struct* p=(struct task_struct*)MAIN_THREAD_TASK_STRUCT;
     p->pid=allocate_pid();
+    p->ppid=-1;
     p->esp;//no need to save esp because main thread is running now, esp is now somewhat below 0xc009f000
     p->status=RUNNING;
     p->tag_s;
@@ -55,6 +56,7 @@ void* start_thread(void (*f)(void*), void* f_arg, int prio){
         return NULL;
     }
     pcb->pid=allocate_pid();
+    pcb->ppid=-1;
     pcb->esp=(void*)pcb+4*KB;
     pcb->status=READY;
     list_add_tail(&(pcb->tag_s),&ready_list);
@@ -100,6 +102,7 @@ void* create_process(void (*f)(), int prio){
         return NULL;
     }
     pcb->pid=allocate_pid();
+    pcb->ppid=-1;
     pcb->esp=(void*)pcb+4*KB;
     pcb->status=READY;
     list_add_tail(&(pcb->tag_s),&ready_list);

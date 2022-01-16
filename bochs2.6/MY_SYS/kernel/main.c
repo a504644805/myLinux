@@ -16,6 +16,8 @@ void f(void* f_arg);
 void f2(void* f_arg);
 void uf();
 void uf2();
+void idle(void* f_arg);
+void init();
 struct lock console_lock;
 int main(void){
 	put_str("Hi, I am kernel\n");
@@ -30,17 +32,24 @@ int main(void){
 	update_gdt();
 	
 	make_main_thread();
+	start_thread(idle,NULL,31);
+	/*
 	start_thread(f,"1",31);
 	start_thread(f2,"2",31);
 
 	create_process(uf,31);
 	create_process(uf2,31);
+	*/
 
 	init_lock(&console_lock);
 	
 	enable_intr();
 
 	init_fs();
+
+	create_process(init,31);
+
+	while(1);
 
 	//fs test
 	extern struct partition* default_parti;
@@ -156,6 +165,27 @@ int main(void){
 	}
 	*/
 	return 0;
+}
+void idle(void* f_arg){
+	while(1);
+}
+void init(){
+	int i=fork();
+	if(i==-1){
+		printf("fail to fork\n");
+	}
+	else if(i==0){
+		printf("Hi, I am child, my pid is %d\n",getpid());
+		struct dir_entry* dir_entry=(struct dir_entry*)malloc(sizeof(struct dir_entry));
+		dir_entry->ftype=1;
+		dir_entry->ino=3;
+		printf("ftype: %d, ino: %d\n",dir_entry->ftype,dir_entry->ino);
+		free(dir_entry);
+	}
+	else{
+		printf("Hi, I am father, my pid is %d, my child's pid is %d\n",getpid(),i);
+	}
+	while(1);
 }
 void f(void* f_arg){
 	while(1);
