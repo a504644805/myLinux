@@ -120,7 +120,6 @@ void format_partition(struct partition* parti){
 }
 
 struct partition* default_parti;
-struct dir root_dir;//uniform fs tree
 void set_default_parti(struct partition* parti){
     parti->s_b=(struct super_block*)sys_malloc(SUPER_BLOCK_SECTS*SECT_SIZE);
     ata_read(SUPER_BLOCK_SECTS,parti->start_lba+OBR_SECS,parti->disk,(char*)(parti->s_b));
@@ -134,7 +133,6 @@ void set_default_parti(struct partition* parti){
     ata_read(parti->s_b->db_sects,parti->s_b->db_start_lba,parti->disk,parti->db.p);
 
     INIT_LIST_HEAD(&(parti->inode_list));
-    root_dir;
     
     default_parti=parti;
 }
@@ -266,6 +264,38 @@ void print_dir(struct dir dir,struct partition* parti,uint32_t cnt){
     sys_free((void*)dir_entry_array);
 }
 
+void sys_print_dir(char* path){
+    ASSERT(path[0]='/');
+    struct dir_entry dir_entry;
+    ASSERT(search_file_with_path(path,&dir_entry) && dir_entry.ftype==DIR);
+    struct dir dir=dir_open(dir_entry.ino,default_parti);
+    struct dir_entry* dir_entry_array=(struct dir_entry*)sys_malloc(SECT_SIZE);
+    ASSERT(dir_entry_array!=NULL);
+
+    //先找12个一级索引
+    for (size_t i = 0; i < LEVEL1_REFERENCE; i++){
+        if(dir.i_p->lba[i]==-1){
+            continue;
+        }
+        else{
+            ata_read(1,dir.i_p->lba[i],default_parti->disk,(char*)dir_entry_array);
+            for (size_t j = 0; j < dir_entry_per_sect; j++){
+                if(dir_entry_array[j].ftype!=UNKNOWN){
+                    print_dir_entry(dir_entry_array[j]);
+                }
+                else{
+                    continue;
+                }
+            }
+        }
+    }
+    //二级索引对应的128块
+    ASSERT(dir.i_p->lba_2==-1);//累，先假设目录不超过12块
+    
+    sys_free((void*)dir_entry_array);
+    dir_close(dir,default_parti);
+}
+
 void print_dir_entry(struct dir_entry dir_entry){
     printf("filename: %s, ino: %d, ftype: %d\n",dir_entry.filename,dir_entry.ino,dir_entry.ftype);
 }
@@ -354,7 +384,7 @@ uint32_t sys_open(const char *path, int flags){
     else{
     }
     //inode_open, 打开文件表
-    ASSERT(search_file_with_path(path,&dir_entry));
+    ASSERT(search_file_with_path(path,&dir_entry) && dir_entry.ftype==NORMAL);
     struct inode* i_p=inode_open(default_parti,dir_entry.ino);
     uint32_t sys_ofile_idx=get_free_slot_from_system_ofile_table();
     uint32_t fd=get_free_fd_from_process_ofile_table();
@@ -372,18 +402,22 @@ uint32_t sys_open(const char *path, int flags){
 
 /*
 /dir1/dir2/normal
-rt 1, 找到对应的NORMAL file, 并将其对应的dir_entry放入形参dir_entry中
+rt 1, 找到对应的NORMAL file或目录, 并将其对应的dir_entry放入形参dir_entry中
 rt 0, 没找到且找至最后一个目录，此时dir_entry为dir2在dir1中对应的dir_entry
 	  其他情况暂不考虑（找生路） */
 bool search_file_with_path(const char* path,struct dir_entry* dir_entry){//无需parti作形参because of uniform fs tree
     ASSERT(path[0]=='/');
     char stored_name[MAX_FILENAME_LEN];
-    uint32_t path_depth=parse_path_depth(path);
-    
+    const uint32_t path_depth=parse_path_depth(path);
+
     struct dir cur_dir=dir_open(0,default_parti);//open root_dir
     strcpy(dir_entry->filename,"/");
     dir_entry->ino=0;
     dir_entry->ftype=DIR;
+    if(path_depth==0){
+        dir_close(cur_dir,default_parti);
+        return 1;
+    }
 
     for(int i=1; i<=path_depth; i++){
         path=parse_path(path,stored_name);
@@ -399,8 +433,12 @@ bool search_file_with_path(const char* path,struct dir_entry* dir_entry){//无�
         else{
             if(dir_entry->ftype==DIR && i<=path_depth-1){
                 dir_close(cur_dir,default_parti);
-                dir_open(dir_entry->ino,default_parti);//
+                cur_dir=dir_open(dir_entry->ino,default_parti);//
                 continue;
+            }
+            else if(dir_entry->ftype==DIR && i==path_depth){
+                dir_close(cur_dir,default_parti);
+                return 1;
             }
             else if(dir_entry->ftype==NORMAL && i==path_depth){
                 dir_close(cur_dir,default_parti);
@@ -421,7 +459,6 @@ bool search_file_with_path(const char* path,struct dir_entry* dir_entry){//无�
 bool search_file_in_dir(char* filename,struct dir* dir,struct partition* parti,struct dir_entry* rt_dir_entry){
     struct dir_entry* dir_entry_array=(struct dir_entry*)sys_malloc(SECT_SIZE);
     ASSERT(dir_entry_array!=NULL);
-
     //先找12个一级索引
     for (size_t i = 0; i < LEVEL1_REFERENCE; i++){
         if(dir->i_p->lba[i]==-1){
@@ -431,6 +468,39 @@ bool search_file_in_dir(char* filename,struct dir* dir,struct partition* parti,s
             ata_read(1,dir->i_p->lba[i],parti->disk,(char*)dir_entry_array);
             for (size_t j = 0; j < dir_entry_per_sect; j++){
                 if(dir_entry_array[j].ftype!=UNKNOWN && strcmp(dir_entry_array[j].filename,filename)==0){
+                    memcpy((void*)rt_dir_entry,(void*)(&(dir_entry_array[j])),sizeof(struct dir_entry));
+                    sys_free((void*)dir_entry_array);
+                    return 1;
+                }
+                else{
+                    continue;
+                }
+            }
+        }
+    }
+    //二级索引对应的128块
+    ASSERT(dir->i_p->lba_2==-1);//累，先假设目录不超过12块
+    
+    sys_free((void*)dir_entry_array);
+    return 0;
+}
+
+//非递归搜索. 遍历140个盘块直到成功或失败
+//若未找到，rt 0，rt_dir_entry内容不变
+//由于miniOS未支持硬链接，因此ino唯一对应一个filename
+bool search_file_in_dir_with_ino(uint32_t ino,struct dir* dir,struct partition* parti,struct dir_entry* rt_dir_entry){
+    struct dir_entry* dir_entry_array=(struct dir_entry*)sys_malloc(SECT_SIZE);
+    ASSERT(dir_entry_array!=NULL);
+
+    //先找12个一级索引
+    for (size_t i = 0; i < LEVEL1_REFERENCE; i++){
+        if(dir->i_p->lba[i]==-1){
+            continue;
+        }
+        else{
+            ata_read(1,dir->i_p->lba[i],parti->disk,(char*)dir_entry_array);
+            for (size_t j = 0; j < dir_entry_per_sect; j++){
+                if(dir_entry_array[j].ftype!=UNKNOWN && dir_entry_array[j].ino==ino){
                     memcpy((void*)rt_dir_entry,(void*)(&(dir_entry_array[j])),sizeof(struct dir_entry));
                     sys_free((void*)dir_entry_array);
                     return 1;
@@ -467,6 +537,9 @@ const char* parse_path(const char* path,char* stored_name){
 }
 
 uint32_t parse_path_depth(const char* path){
+    if(strcmp(path,"/")==0){
+        return 0;
+    }
     uint32_t cnt=0;
     char stored_name[MAX_FILENAME_LEN];
     while (path) {
@@ -485,8 +558,8 @@ void parse_path_lastname(const char* path,char* lastname){
     parse_path(path,lastname);
 }
 
-// input:  dir1/dir2/file
-// output: dir1/dir2
+// input:  /dir1/dir2/file
+// output: /dir1/dir2
 void parse_path_dir_path(const char* path,char* dir_path){
     char stored_name[MAX_FILENAME_LEN];
     const char* path_backup=path;
@@ -494,7 +567,7 @@ void parse_path_dir_path(const char* path,char* dir_path){
     for (size_t i = 1; i <= depth-1; i++){
         path=parse_path(path,stored_name);
     }
-    strcpy(dir_path,path);
+    strcpy(dir_path,path_backup);
 
     // dir1/dir2/file
     //          |
@@ -542,6 +615,7 @@ void dir_close(struct dir dir, struct partition* parti){
 //找有没有现成的空的entry, 没有现成的但是lba[]还有余量则从磁盘分配一个sect
 void dir_add_dir_entry_and_sync(struct dir* dir,struct dir_entry* dir_entry,struct partition* parti){
     ASSERT(!search_file_in_dir(dir_entry->filename,dir,parti,dir_entry));
+    ASSERT(dir->i_p->cnt==1);//assert no one else has open the dir
     //找有没有现成的空的entry
     struct dir_entry* dir_entry_array=(struct dir_entry*)sys_malloc(SECT_SIZE);
     ASSERT(dir_entry_array!=NULL);
@@ -589,25 +663,24 @@ void dir_add_dir_entry_and_sync(struct dir* dir,struct dir_entry* dir_entry,stru
     sys_free((void*)dir_entry_array);
     return;
 }
-void dir_delete_dir_entry_and_sync(uint32_t dir_ino,char* filename,struct partition* parti){
+void dir_delete_dir_entry_and_sync(struct dir* dir,char* filename,struct partition* parti){
     //缺点:  1.由于search_file_in_dir未返回查找到的dir_entry的位置信息(第几块，第几个表项)，因此没能复用
     //      2.未考虑目录所占块的回收
-    struct dir dir=dir_open(dir_ino,parti);
-    ASSERT(dir.i_p->cnt==1);//assert no one else has open the dir
+    ASSERT(dir->i_p->cnt==1);//assert no one else has open the dir
     struct dir_entry* dir_entry_array=(struct dir_entry*)sys_malloc(SECT_SIZE);
     ASSERT(dir_entry_array!=NULL);
 
     //先找12个一级索引
     for (size_t i = 0; i < LEVEL1_REFERENCE; i++){
-        if(dir.i_p->lba[i]==-1){
+        if(dir->i_p->lba[i]==-1){
             continue;
         }
         else{
-            ata_read(1,dir.i_p->lba[i],parti->disk,(char*)dir_entry_array);
+            ata_read(1,dir->i_p->lba[i],parti->disk,(char*)dir_entry_array);
             for (size_t j = 0; j < dir_entry_per_sect; j++){
                 if(dir_entry_array[j].ftype!=UNKNOWN && strcmp(dir_entry_array[j].filename,filename)==0){
                     memset((void*)(&(dir_entry_array[j])),0,sizeof(struct dir_entry));//delete the dir_entry
-                    ata_write(1,dir.i_p->lba[i],parti->disk,(char*)dir_entry_array);//sync
+                    ata_write(1,dir->i_p->lba[i],parti->disk,(char*)dir_entry_array);//sync
                     sys_free((void*)dir_entry_array);
                     return;
                 }
@@ -619,9 +692,163 @@ void dir_delete_dir_entry_and_sync(uint32_t dir_ino,char* filename,struct partit
     }
     //二级索引对应的128块
     //累，先假设目录不超过12块
-    dir_close(dir,parti);
+    sys_free((void*)dir_entry_array);
     ASSERT(1==2);//查找失败
 }
+
+/***dir1/dir2/dir3
+     |     |    |
+dir2's d_e |    |
+      parent dir|
+             new dir
+*/
+void sys_mkdir(const char *pathname){
+    struct dir_entry dir_entry;
+    ASSERT(!search_file_with_path(pathname,&dir_entry));
+    struct dir parent_dir=dir_open(dir_entry.ino,default_parti);
+
+    //ib
+    uint32_t ib_idx=scan_bm(&(default_parti->ib),1);
+    ASSERT(ib_idx!=-1);
+    set_bit_bm(&(default_parti->ib),ib_idx);
+    sync_bm(default_parti,ib_idx,INODE_BITMAP);
+
+    //db
+    uint32_t db_idx=scan_bm(&(default_parti->db),1);
+    ASSERT(db_idx!=-1);
+    set_bit_bm(&(default_parti->db),db_idx);
+    sync_bm(default_parti,db_idx,DATA_BITMAP);
+
+    //I
+    struct inode* inode=(struct inode*)sys_malloc(sizeof(struct inode));
+    ASSERT(inode!=NULL);
+    init_inode(inode);
+    inode->filesz=2*sizeof(struct dir_entry);
+    inode->lba[0]=default_parti->s_b->data_start_lba+db_idx;
+    inode->ino=ib_idx;
+    sync_inode(*inode,default_parti);
+
+    //D
+    struct dir_entry* dir_entry_array=(struct dir_entry*)sys_malloc(SECT_SIZE);
+    ASSERT(dir_entry_array!=NULL);
+    memset(dir_entry_array,0,SECT_SIZE);
+    strcpy(dir_entry_array[0].filename,".");
+    dir_entry_array[0].ino=inode->ino;
+    dir_entry_array[0].ftype=DIR;
+
+    strcpy(dir_entry_array[1].filename,"..");
+    dir_entry_array[1].ino=parent_dir.i_p->ino;
+    dir_entry_array[1].ftype=DIR;
+    ata_write(1,inode->lba[0],default_parti->disk,(char*)dir_entry_array);
+
+    //D--dir
+    char dir_name[MAX_FILENAME_LEN];
+    parse_path_lastname(pathname,dir_name);
+    strcpy(dir_entry.filename,dir_name);
+    dir_entry.ino=inode->ino;
+    dir_entry.ftype=DIR;
+    dir_add_dir_entry_and_sync(&parent_dir,&dir_entry,default_parti);
+
+    sys_free(dir_entry_array);
+    sys_free(inode);
+    dir_close(parent_dir,default_parti);
+}
+
+void sys_rmdir(const char *pathname){
+    struct dir_entry dir_entry;
+    ASSERT(strcmp(pathname,"/")!=0);
+    ASSERT(search_file_with_path(pathname,&dir_entry) && dir_entry.ftype==DIR);
+    struct inode* inode=inode_open(default_parti,dir_entry.ino);
+    ASSERT(inode->cnt==1);//assert no one else open the dir
+    ASSERT(inode->filesz==2*sizeof(struct dir_entry));//assert dir is empty
+    uint32_t parent_dir_ino=({
+        //利用search_file_with_path rt 0的情况获得父目录的ino.  not beautiful though 
+        char un_exist_filename[MAX_FILENAME_LEN]="__UNEXIST__";
+        char search_path[MAX_PATH_LEN]={0};
+        parse_path_dir_path(pathname,search_path);
+        strcat(search_path,"/");
+        strcat(search_path,un_exist_filename);
+        struct dir_entry dir_entry;
+        ASSERT(!search_file_with_path(search_path,&dir_entry));
+        dir_entry.ino;
+    });
+    struct dir parent_dir;
+    parent_dir=dir_open(parent_dir_ino,default_parti);
+
+    //ib
+    clear_bit_bm(&(default_parti->ib),inode->ino);
+    sync_bm(default_parti,inode->cnt,INODE_BITMAP);
+
+    //db
+    for (size_t i = 0; i < LEVEL1_REFERENCE; i++){
+        if(inode->lba[i]!=-1){
+            uint32_t db_idx=(inode->lba[i])-(default_parti->s_b->data_start_lba);
+            clear_bit_bm(&(default_parti->db),db_idx);
+            sync_bm(default_parti,db_idx,DATA_BITMAP);
+        }
+        else{
+            continue;
+        }
+    }
+
+    //D--dir
+    char dir_name[MAX_FILENAME_LEN];
+    parse_path_lastname(pathname,dir_name);
+    dir_delete_dir_entry_and_sync(&parent_dir,dir_name,default_parti);
+
+    inode_close(inode,default_parti);
+    dir_close(parent_dir,default_parti);
+}
+
+/*
+The  getcwd() function copies an absolute pathname of the current work‐
+       ing directory to the array pointed to by buf, which is of length size. */
+//getcwd和chdir都是围绕task_struct.cwd_ino实现的
+void sys_getcwd(char *buf, size_t size){
+    ASSERT(size>=MAX_PATH_LEN);
+    buf[0]=0;
+    struct task_struct* t_s=get_cur_running();
+    uint32_t cur_ino=t_s->cwd_ino;
+    if(cur_ino==0){
+        strcpy(buf,"/");
+        return;
+    }
+    
+    char str_buf[MAX_PATH_LEN]={0};
+    while(cur_ino!=0){
+        uint32_t parent_dir_ino=({
+            struct dir dir=dir_open(cur_ino,default_parti);
+            struct dir_entry dir_entry;
+            ASSERT(search_file_in_dir("..",&dir,default_parti,&dir_entry));
+            dir_close(dir,default_parti);
+            dir_entry.ino;
+        });
+        struct dir_entry dir_entry_in_parent_dir;({
+            //准备好 dir_entry_in_parent_dir
+            struct dir dir=dir_open(parent_dir_ino,default_parti);
+            search_file_in_dir_with_ino(cur_ino,&dir,default_parti,&dir_entry_in_parent_dir);
+            dir_close(dir,default_parti);
+        });
+        strcat(str_buf,"/");
+        strcat(str_buf,dir_entry_in_parent_dir.filename);
+        cur_ino=parent_dir_ino;
+    }
+    //reverse str_buf: /dir3/dir2/dir1 => /dir1/dir2/dir3
+    //                           |
+    char* cur_pos;
+    while((cur_pos=strrchr(str_buf,'/'))!=NULL){
+        strcat(buf,cur_pos);
+        *cur_pos=0;
+    }
+}
+
+void sys_chdir(const char *path){
+    struct dir_entry dir_entry;
+    ASSERT(search_file_with_path(path,&dir_entry) && dir_entry.ftype==DIR);
+    struct task_struct* t_s=get_cur_running();
+    t_s->cwd_ino=dir_entry.ino;
+}
+
 //----------------------打开文件表 operation---------------------
 struct file sys_open_file[MAX_SYSTEM_OPEN_FILE];
 uint32_t get_free_fd_from_process_ofile_table(){
@@ -828,7 +1055,7 @@ uint32_t sys_lseek(int fd, int offset, enum WHENCE_TYPE whence){
 // dir1/dir2/file1
 void sys_unlink(const char *pathname){
     struct dir_entry dir_entry;
-    ASSERT(search_file_with_path(pathname,&dir_entry));
+    ASSERT(search_file_with_path(pathname,&dir_entry) && dir_entry.ftype==NORMAL);
     struct inode* inode=inode_open(default_parti,dir_entry.ino);
     //打开文件表
     ASSERT(inode->cnt==1);//ASSERT no one else has open this file
@@ -845,6 +1072,7 @@ void sys_unlink(const char *pathname){
         else{
         }
     }
+
     //D--dir
     char filename[MAX_FILENAME_LEN];
     parse_path_lastname(pathname,filename);
@@ -860,8 +1088,10 @@ void sys_unlink(const char *pathname){
         dir_entry.ino;
     });
 
-    dir_delete_dir_entry_and_sync(dir_ino,filename,default_parti);
-    
+    struct dir dir=dir_open(dir_ino,default_parti);
+    dir_delete_dir_entry_and_sync(&dir,filename,default_parti);
+    dir_close(dir,default_parti);
+
     inode_close(inode,default_parti);
 }
 

@@ -69,6 +69,7 @@ struct task_struct{
     struct arena_cluster u_arena_cluster[7];
 
     uint32_t process_open_file[MAX_PROCESS_OPEN_FILE];
+    uint32_t cwd_ino;
 
    int stack_overflow_chk;
 };

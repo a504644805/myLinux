@@ -74,8 +74,8 @@ struct inode{
     //int write_deny;
 };
 
-
-//dir除根目录外并不纳入持久存储
+//普通文件对应打开文件表
+//目录对应struct dir
 struct dir{
     struct inode* i_p;
 };
@@ -124,6 +124,7 @@ void sync_inode(struct inode inode,struct partition* parti);
 //-------------------asist function-----------------
 void show_init_fs_result(struct partition* parti);
 void print_dir(struct dir dir,struct partition* parti,uint32_t cnt);
+void sys_print_dir(char* path);
 void print_dir_entry(struct dir_entry dir_entry);
 void print_inode_list(struct partition* parti);
 void print_inode_in_disk(struct partition* parti, uint32_t cnt);
@@ -152,6 +153,13 @@ void sync_bm(struct partition* parti, uint32_t idx, uint32_t type);
 struct dir dir_open(uint32_t ino,struct partition* parti);
 void dir_close(struct dir dir, struct partition* parti);
 void dir_add_dir_entry_and_sync(struct dir* dir,struct dir_entry* dir_entry,struct partition* parti);
+void dir_delete_dir_entry_and_sync(struct dir* dir,char* filename,struct partition* parti);
+
+void sys_mkdir(const char *pathname);
+void sys_rmdir(const char *pathname);
+//getcwd和chdir都是围绕task_struct.cwd_ino实现的
+void sys_getcwd(char *buf,size_t size);
+void sys_chdir(const char *path);
 
 //---------------打开文件表 operation-----------------
 //#define MAX_PROCESS_OPEN_FILE 8 ---defined in thread.h

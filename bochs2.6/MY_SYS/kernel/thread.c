@@ -43,6 +43,7 @@ void make_main_thread(){
     p->u_vpool.bm.p=NULL;
     for (size_t i = 0; i < MAX_PROCESS_OPEN_FILE; i++)
         p->process_open_file[i]=-1;
+    p->cwd_ino=0;
     p->stack_overflow_chk=0x19980211;
 
 }
@@ -65,6 +66,7 @@ void* start_thread(void (*f)(void*), void* f_arg, int prio){
     pcb->u_vpool.bm.p=NULL;
     for (size_t i = 0; i < MAX_PROCESS_OPEN_FILE; i++)
         pcb->process_open_file[i]=-1;
+    pcb->cwd_ino=0;
     pcb->stack_overflow_chk=0x19980211;
 
     //prepare the stack for 初次调用
@@ -110,6 +112,7 @@ void* create_process(void (*f)(), int prio){
     prepare_u_arena_cluster(pcb->u_arena_cluster);
     for (size_t i = 0; i < MAX_PROCESS_OPEN_FILE; i++)
         pcb->process_open_file[i]=-1;
+    pcb->cwd_ino=0;
     pcb->stack_overflow_chk=0x19980211;
 
     //prepare the stack for 初次调用

@@ -97,6 +97,21 @@ int strcmp(const char *s1, const char *s2){
     }
 }
 
+/*The strrchr() function returns a pointer to the  last  occurrence  of  the
+       character c in the string s.*/
+char *strrchr(const char *s, int c){
+    ASSERT(s!=NULL);
+    const char* last_char=NULL;
+    while(*s!=0){
+        if(*s==c){
+            last_char=s;
+        }
+        s++;
+    }
+    return (char*)last_char;
+}
+
+
 /*The strlen() function calculates the length of the string pointed to by s,
        excluding the terminating null byte ('\0').*/
 size_t strlen(const char *s){

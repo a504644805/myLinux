@@ -43,10 +43,40 @@ int main(void){
 	init_fs();
 
 	//fs test
-	extern struct dir root_dir;
 	extern struct partition* default_parti;
 	struct dir_entry dir_entry={"normal1",1,NORMAL};
-	char str_buf[20];
+	char str_buf[MAX_PATH_LEN];
+
+	brk6();
+	sys_print_dir("/");
+	brk6();
+	sys_mkdir("/dir1");
+	sys_print_dir("/");
+	print_bm_in_parti(default_parti,INODE_BITMAP,16);
+	print_bm_in_parti(default_parti,DATA_BITMAP,16);
+	brk6();
+	sys_mkdir("/dir1/dir2");
+	brk6();
+	printf("dir1 content:\n");sys_print_dir("/dir1");
+	printf("dir2 content:\n");sys_print_dir("/dir1/dir2");
+	print_bm_in_parti(default_parti,INODE_BITMAP,16);
+	print_bm_in_parti(default_parti,DATA_BITMAP,16);
+	brk6();
+
+	sys_open("/dir1/fil1",O_CREAT|O_RDWR);
+	printf("dir1 content:\n");sys_print_dir("/dir1");
+	printf("/ content:\n");sys_print_dir("/");
+	brk6();
+	sys_rmdir("/dir1/dir2");
+	printf("dir1 content:\n");sys_print_dir("/dir1");
+	brk6();
+	sys_getcwd(str_buf,MAX_PATH_LEN);
+	printf("cwd: %s\n",str_buf);
+	brk6();
+	sys_chdir("/dir1");
+	sys_getcwd(str_buf,MAX_PATH_LEN);
+	printf("cwd: %s\n",str_buf);
+	brk6();
 
 	brk5();
 	uint32_t fd1=sys_open("/file1",O_CREAT|O_RDWR);
@@ -57,7 +87,9 @@ int main(void){
 	print_inode_list(default_parti);
 	brk5();
 	sys_close(fd1);
+	print_inode_list(default_parti);
 	sys_unlink("/file1");
+	print_inode_list(default_parti);
 	brk5();
 
 	brk5();
@@ -65,56 +97,10 @@ int main(void){
 	printf("fd2: %d\n",fd2);
 	print_inode_list(default_parti);
 	brk5();	
-	sys_close(fd1);
-	print_inode_list(default_parti);
-	brk5();
 	sys_close(fd2);
 	print_inode_list(default_parti);
 	brk5();
 
-	brk4();
-	print_inode_list(default_parti);
-	brk4();
-	print_bm_in_parti(default_parti,INODE_BITMAP,64);
-	brk4();
-	print_bm_in_parti(default_parti,DATA_BITMAP,64);
-	brk4();
-	print_inode_in_disk(default_parti,7);
-	brk4();
-	print_dir(root_dir,default_parti,5);
-	brk4();
-
-	brk3();
-	dir_add_dir_entry_and_sync(&root_dir,&dir_entry,default_parti);
-	brk3();
-	search_file_in_dir("normal1",&root_dir,default_parti,&dir_entry);
-	brk3();
-	print_dir_entry(dir_entry);
-	brk3();
-
-
-	brk2();
-	if(search_file_with_path("/normal1",&dir_entry)){
-		printf("success.");print_dir_entry(dir_entry);
-	}
-	else{
-		printf("fail.");print_dir_entry(dir_entry);
-	}
-	brk2();
-
-	if(search_file_with_path("/normal2",&dir_entry)){
-		printf("success.");print_dir_entry(dir_entry);
-	}
-	else{
-		printf("fail.");print_dir_entry(dir_entry);
-	}
-	brk2();
-
-	brk1();
-	search_file_in_dir("aaa",&root_dir,default_parti,&dir_entry);
-	brk1();
-	print_dir_entry(dir_entry);
-	brk1();
 
 	while (1);
 
