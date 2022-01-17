@@ -3,7 +3,7 @@
 #include "global.h"
 #include "thread.h"
 
-#define SYSCALL_NUM 10
+#define SYSCALL_NUM 16
 void init_syscall_table();
 
 #define SYS_GETPID 0
@@ -11,10 +11,11 @@ void init_syscall_table();
 #define SYS_MALLOC 2
 #define SYS_FREE 3
 #define SYS_FORK 4
+#define SYS_READ 5
+#define SYS_PUTCHAR 6
+#define SYS_CLEAR 7
+#define SYS_PRINT_DIR 8
 uint32_t sys_getpid();
-//On success, the number of bytes written  is  returned
-uint32_t sys_write(const char* s);
-
 
 //这一部分应该是用户的库而不是内核代码
 #define _syscall0(num) ({\
@@ -27,9 +28,23 @@ uint32_t sys_write(const char* s);
     asm volatile("int $0x80":"=a"(retval):"a"(num),"b"(arg1));\
     retval;\
 })
+#define _syscall2(num,arg1,arg2) ({\
+    int retval;\
+    asm volatile("int $0x80":"=a"(retval):"a"(num),"b"(arg1),"c"(arg2));\
+    retval;\
+})
+#define _syscall3(num,arg1,arg2,arg3) ({\
+    int retval;\
+    asm volatile("int $0x80":"=a"(retval):"a"(num),"b"(arg1),"c"(arg2),"d"(arg3));\
+    retval;\
+})
 int fork();
 uint32_t getpid();
-uint32_t write(const char* s);
+int write(int fd, const void *buf, size_t count);
+int read(int fd, void *buf, size_t count);
 void* malloc(size_t sz);
 void free(void* vaddr);
+void putchar(char c);
+void clear();
+void print_dir(char* path);
 #endif

@@ -1,11 +1,8 @@
 #ifndef THREAD_H
 #define THREAD_H
-#include "debug.h"
 #include "memory.h"
-#include "global.h"
-#include "interrupt.h"
 #include "list.h"
-#include "string.h"
+#include "global.h"
 
 #define MAIN_THREAD_TASK_STRUCT 0xc009e000
 

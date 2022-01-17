@@ -1,6 +1,7 @@
 #include "fs.h"
 #include "ata.h"
 #include "stdio.h"
+#include "keyboard.h"
 
 //step2
 struct channel ata0_channel;//only support 1 channel(ata0) for simplity
@@ -249,19 +250,6 @@ void show_init_fs_result(struct partition* parti){
     printf("super_block ram addr: %x\n",(uint32_t)parti->s_b);
     printf("ib ram addr: %x\n",(uint32_t)(parti->ib.p));
     printf("db ram addr: %x\n",(uint32_t)(parti->db.p));
-}
-
-//cnt: 显示前cnt个表项
-void print_dir(struct dir dir,struct partition* parti,uint32_t cnt){
-    ASSERT(cnt<=dir_entry_per_sect);//为简化代码, 暂时只支持显示第一个sect里的dir_entry
-    struct dir_entry* dir_entry_array=(struct dir_entry*)sys_malloc(SECT_SIZE);
-    ata_read(1,dir.i_p->lba[0],parti->disk,(void*)dir_entry_array);
-    printf("dir: \n");
-    for (size_t i = 0; i < cnt; i++){
-        print_dir_entry(dir_entry_array[i]);
-    }
-    
-    sys_free((void*)dir_entry_array);
 }
 
 void sys_print_dir(char* path){
@@ -890,7 +878,7 @@ enum FD_TYPE{
     STD_IN,STD_OUT,STD_ERROUT
 };*/
 //从offset开始写内容，对于超过混合索引所支持最大容量的情况assert掉, 若成功返回的一定是count
-int sys_write_new(int fd, const void *buf, size_t count){//用于取代syscall.c的sys_write，修改调用了sys_write地方
+int sys_write(int fd, const void *buf, size_t count){//用于取代syscall.c的sys_write，修改调用了sys_write地方
     if(count==0) return 0;
     ASSERT(fd>=0 && fd!=STD_IN && fd!=STD_ERROUT);
     if(fd==STD_OUT){
@@ -961,57 +949,66 @@ int sys_write_new(int fd, const void *buf, size_t count){//用于取代syscall.c
     return count;
 }
 
+extern struct circular_queue kbd_circular_buf_queue;
 //若已读完(offset==filesz)则返回-1
 //若剩余可读字节数＜count则读完并返回所读字节数
 int sys_read(int fd, void *buf, size_t count){
-    ASSERT(fd>=3);
-    uint32_t sys_ofile_idx,offset;
-    struct inode* i_p;
-    struct task_struct* t_s=get_cur_running();
-    ASSERT(t_s->process_open_file[fd]!=-1);
-    sys_ofile_idx=t_s->process_open_file[fd];
-    ASSERT(sys_open_file[sys_ofile_idx].i_p!=NULL);
-    ASSERT(!(sys_open_file[sys_ofile_idx].flags&O_WRONLY));
-    i_p=sys_open_file[sys_ofile_idx].i_p;
-    offset=sys_open_file[sys_ofile_idx].offset;
-    ASSERT(offset<=i_p->filesz);
-    
-    if(offset==i_p->filesz){
-        return EOF;
+    ASSERT(fd>=3 || fd==STD_IN);
+    if(fd==STD_IN){
+        for (size_t i = 0; i < count; i++){
+            ((char*)buf)[i]=cq_take_one_elem(&kbd_circular_buf_queue);
+        }
+        return count;
     }
     else{
-        if((offset+count)>(i_p->filesz)){
-            count=i_p->filesz-offset;
+        uint32_t sys_ofile_idx,offset;
+        struct inode* i_p;
+        struct task_struct* t_s=get_cur_running();
+        ASSERT(t_s->process_open_file[fd]!=-1);
+        sys_ofile_idx=t_s->process_open_file[fd];
+        ASSERT(sys_open_file[sys_ofile_idx].i_p!=NULL);
+        ASSERT(!(sys_open_file[sys_ofile_idx].flags&O_WRONLY));
+        i_p=sys_open_file[sys_ofile_idx].i_p;
+        offset=sys_open_file[sys_ofile_idx].offset;
+        ASSERT(offset<=i_p->filesz);
+        
+        if(offset==i_p->filesz){
+            return EOF;
         }
         else{
+            if((offset+count)>(i_p->filesz)){
+                count=i_p->filesz-offset;
+            }
+            else{
+            }
         }
+        
+        /*
+        lba[]的盘块号不一定连续，但有数据的情况是连续的:
+        lba[0]=123  [1]=42  [2]=311  [3]=-1  [4]=-1
+        有数据........................无数据........
+        */
+        const uint32_t total_sect=DIVUP((offset+count),SECT_SIZE);
+        const uint32_t already_allocated_sect_num=DIVUP((i_p->filesz),SECT_SIZE);
+        
+        const uint32_t malloc_sect=total_sect-offset/SECT_SIZE;
+        const uint32_t s_idx=offset/SECT_SIZE;
+        const uint32_t e_idx=s_idx+malloc_sect-1;
+
+        //核心内容
+        void* _buf_=sys_malloc(malloc_sect*SECT_SIZE);
+        ASSERT(_buf_!=NULL);
+        for (size_t i = 0; i < malloc_sect; i++){
+            ata_read(1,i_p->lba[s_idx+i],default_parti->disk,_buf_+i*SECT_SIZE);
+        }
+        memcpy(buf,_buf_+offset%SECT_SIZE,count);
+        sys_free(_buf_);
+
+        //打开文件表
+        sys_open_file[sys_ofile_idx].offset+=count;
+
+        return count;
     }
-    
-    /*
-    lba[]的盘块号不一定连续，但有数据的情况是连续的:
-    lba[0]=123  [1]=42  [2]=311  [3]=-1  [4]=-1
-    有数据........................无数据........
-    */
-    const uint32_t total_sect=DIVUP((offset+count),SECT_SIZE);
-    const uint32_t already_allocated_sect_num=DIVUP((i_p->filesz),SECT_SIZE);
-    
-    const uint32_t malloc_sect=total_sect-offset/SECT_SIZE;
-    const uint32_t s_idx=offset/SECT_SIZE;
-    const uint32_t e_idx=s_idx+malloc_sect-1;
-
-    //核心内容
-    void* _buf_=sys_malloc(malloc_sect*SECT_SIZE);
-    ASSERT(_buf_!=NULL);
-    for (size_t i = 0; i < malloc_sect; i++){
-        ata_read(1,i_p->lba[s_idx+i],default_parti->disk,_buf_+i*SECT_SIZE);
-    }
-    memcpy(buf,_buf_+offset%SECT_SIZE,count);
-    sys_free(_buf_);
-
-    //打开文件表
-    sys_open_file[sys_ofile_idx].offset+=count;
-
-    return count;
 }
 
 /*

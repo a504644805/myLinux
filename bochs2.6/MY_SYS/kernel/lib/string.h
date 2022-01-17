@@ -1,7 +1,6 @@
 #ifndef STR_H
 #define STR_H
 #include "global.h"
-#include "debug.h"
 /*The  memset()  function fills the first n bytes of the memory area pointed
        to by s with the constant byte c.*/
 void *memset(void *s, int c, size_t n);

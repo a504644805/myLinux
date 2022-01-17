@@ -123,7 +123,6 @@ void sync_inode(struct inode inode,struct partition* parti);
 
 //-------------------asist function-----------------
 void show_init_fs_result(struct partition* parti);
-void print_dir(struct dir dir,struct partition* parti,uint32_t cnt);
 void sys_print_dir(char* path);
 void print_dir_entry(struct dir_entry dir_entry);
 void print_inode_list(struct partition* parti);
@@ -182,7 +181,7 @@ enum WHENCE_TYPE{
     SEEK_SET,SEEK_CUR,SEEK_END
 };
 void sys_close(uint32_t fd);
-int sys_write_new(int fd, const void *buf, size_t count);
+int sys_write(int fd, const void *buf, size_t count);
 int sys_read(int fd, void *buf, size_t count);
 uint32_t sys_lseek(int fd, int offset, enum WHENCE_TYPE whence);
 void sys_unlink(const char *pathname);

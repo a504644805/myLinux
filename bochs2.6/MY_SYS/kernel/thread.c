@@ -1,6 +1,10 @@
 #include "include/thread.h"
 #include "stdio.h"
 #include "fs.h"
+#include "string.h"
+#include "interrupt.h"
+#include "debug.h"
+
 /*
 struct task_struct{
     void* esp;

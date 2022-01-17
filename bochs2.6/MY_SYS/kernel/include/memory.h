@@ -1,10 +1,10 @@
 #ifndef MEMORY_H
 #define MEMORY_H
 #include "bitmap.h"
-#include "global.h"
-#include "debug.h"
 #include "print.h"
 #include "string.h"
+#include "global.h"
+#include "list.h"
 
 typedef int testm;
 

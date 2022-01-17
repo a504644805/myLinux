@@ -1,4 +1,6 @@
 #include "include/lock.h"
+#include "interrupt.h"
+#include "debug.h"
 //we need lock after we introduce multi-thread
 /*
 struct semaphore{

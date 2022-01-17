@@ -4,5 +4,5 @@
 void put_char(char c);
 void put_str(const char* p);
 void put_int(int i);
-
+void cls_screen();
 #endif

@@ -1,10 +1,6 @@
 #ifndef KEYBOARD_H
 #define KEYBOARD_H
-#include "io.h"
-#include "print.h"
-#include "debug.h"
-#include "interrupt.h"
-#include "thread.h"
+#include "lock.h"
 
 #define KBD_READ_REG 0x60
 
@@ -29,11 +25,13 @@ struct circular_queue{
     char buf[CIRCULAR_QUEUE_MAXSIZE];
     int head;
     int tail;
+    struct lock lock;
+    struct semaphore full;
 };
 void init_cq(struct circular_queue* q);
 char cq_take_one_elem(struct circular_queue* q);
 void cq_put_one_elem(struct circular_queue* q,char c);
-int cq_is_empty(const struct circular_queue* q);
-int cq_is_full(const struct circular_queue* q);
+int cq_is_empty(struct circular_queue* q);
+int cq_is_full(struct circular_queue* q);
 
 #endif

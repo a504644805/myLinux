@@ -11,6 +11,7 @@
 #include "include/syscall.h"
 #include "ata.h"
 #include "fs.h"
+#include "shell.h"
 uint8_t a='a',b='e',c='i';
 void f(void* f_arg);
 void f2(void* f_arg);
@@ -30,7 +31,7 @@ int main(void){
 	init_syscall_table();
 
 	update_gdt();
-	
+
 	make_main_thread();
 	start_thread(idle,NULL,31);
 	/*
@@ -40,7 +41,8 @@ int main(void){
 	create_process(uf,31);
 	create_process(uf2,31);
 	*/
-
+	
+	init_kbd();
 	init_lock(&console_lock);
 	
 	enable_intr();
@@ -92,7 +94,7 @@ int main(void){
 	printf("fd1: %d\n",fd1);
 	print_inode_list(default_parti);
 	brk5();
-	sys_write_new(fd1,"aabbccdd",8);
+	sys_write(fd1,"aabbccdd",8);
 	print_inode_list(default_parti);
 	brk5();
 	sys_close(fd1);
@@ -175,15 +177,19 @@ void init(){
 		printf("fail to fork\n");
 	}
 	else if(i==0){
+		shell();
+		/*
 		printf("Hi, I am child, my pid is %d\n",getpid());
 		struct dir_entry* dir_entry=(struct dir_entry*)malloc(sizeof(struct dir_entry));
 		dir_entry->ftype=1;
 		dir_entry->ino=3;
 		printf("ftype: %d, ino: %d\n",dir_entry->ftype,dir_entry->ino);
 		free(dir_entry);
+		*/
 	}
 	else{
-		printf("Hi, I am father, my pid is %d, my child's pid is %d\n",getpid(),i);
+		printf("Boot done\n");
+		//printf("Hi, I am father, my pid is %d, my child's pid is %d\n",getpid(),i);
 	}
 	while(1);
 }

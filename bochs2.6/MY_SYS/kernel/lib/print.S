@@ -156,6 +156,24 @@ popad
 ret
 
 ;---------------------------------------------------------
+;cls_screen
+global cls_screen
+cls_screen:
+mov ax,SELECTOR_VIDEO
+mov gs,ax
+pushad
+
+mov ecx,80*25
+mov ebx,0
+loop_in_cls_screen:
+mov word [gs:ebx],0x0020
+add ebx,2
+loop loop_in_cls_screen
+
+mov ebx,0
+call set_cursor
+popad
+;---------------------------------------------------------
 
 read_cursor:
 ;may change ax,dx

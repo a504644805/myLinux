@@ -5,7 +5,7 @@ int printf(const char *format, ...){
     va_start(ap,format);
     char buf[1024]={0};
     vsprintf(buf,format,ap);
-    return write(buf);
+    return write(1,buf,1024);
 }
 
 int vsprintf(char *str, const char *format, va_list ap){

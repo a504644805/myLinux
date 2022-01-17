@@ -1,9 +1,9 @@
 #ifndef LOCK_H
 #define LOCK_H
 #include "thread.h"
-#include "interrupt.h"
 #include "print.h"
 #include "list.h"
+
 
 struct semaphore{
     int val;

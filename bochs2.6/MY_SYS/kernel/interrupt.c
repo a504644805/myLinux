@@ -45,6 +45,9 @@ void init_idt(){
 
 //中断服务程序具体内容
 void general_interrupt_handler(int interruptNo){
+	if(interruptNo==0x27 || interruptNo==0x2f){
+		return;
+	}
 	asm volatile("call set_cursor"::"b"(0):"eax","edx");
 	for (size_t i = 0; i < 80*4; i++){//清理出4行的空间
 		put_char(' ');
