@@ -38,6 +38,7 @@ enum K_U_FLAG{
 };
 void init_pool();
 void* malloc_page(enum K_U_FLAG flag,size_t cnt);
+void malloc_page_with_vaddr(enum K_U_FLAG flag,size_t cnt,void* vaddr);
 void free_page(void* vaddr,size_t cnt);
 
 void* valloc(enum K_U_FLAG WHICH_VPOOL,size_t cnt);
@@ -55,7 +56,7 @@ enum BIG_FLAG {BIG,NOT_BIG};
 struct arena{
     struct arena_cluster* cluster;
     enum BIG_FLAG big_flag;
-    size_t cnt;
+    size_t cnt;//struct arena加上数据部分总共占用的页数
 
     int magicNumber;//19985757
 };

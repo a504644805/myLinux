@@ -12,6 +12,7 @@
 #include "ata.h"
 #include "fs.h"
 #include "fork_exec_wait_exit.h"
+#include "elf.h"
 //-1, 0, child_pid
 extern void exit_intr();
 extern struct list_head ready_list;
@@ -62,7 +63,7 @@ int sys_fork(){
         }
     }
     prepare_u_vpool(&(child_t_s->u_vpool));//bm.p=malloc_page(K, )
-    memcpy((void*)child_t_s->u_vpool.bm.p,(void*)parent_t_s->u_vpool.bm.p,DIVUP(parent_t_s->u_vpool.bm.byte_len,PG_SIZE));
+    memcpy((void*)child_t_s->u_vpool.bm.p,(void*)parent_t_s->u_vpool.bm.p,parent_t_s->u_vpool.bm.byte_len);
     memcpy((void*)child_t_s->u_arena_cluster,(void*)parent_t_s->u_arena_cluster,sizeof(struct arena_cluster)*7);
     for (size_t i = 0; i < CLUSTER_CNT; i++){//把cluster对应双向链表中的内核地址改正确
         if(list_empty(&(parent_t_s->u_arena_cluster[i].lhead))){
@@ -92,4 +93,76 @@ int sys_fork(){
 
     free_page(k_buf,1);
     return child_t_s->pid;
+}
+
+void sys_execv(const char *path, char *const argv[]){
+    struct task_struct* t_s=get_cur_running();
+    int fd=sys_open(path,O_RDONLY);
+    ASSERT(fd!=-1);
+    Elf32_Ehdr ehdr;
+    sys_read(fd,&ehdr,sizeof(Elf32_Ehdr));
+    ASSERT(memcmp((void*)&ehdr,"\177ELF\1\1\1",7)==0);
+    ASSERT(ehdr.e_phentsize==sizeof(Elf32_Phdr));
+    uint32_t page_cnt_alloc_for_ph_table=DIVUP((ehdr.e_phentsize*ehdr.e_phnum),PG_SIZE);
+    Elf32_Phdr* phdr=(Elf32_Phdr*)malloc_page(K,page_cnt_alloc_for_ph_table);//malloc from kernel(我们接下来要在用户空间按elf写段，若存于用户空间可能会破坏该内容)
+    ASSERT(phdr!=NULL);
+    sys_read(fd,(void*)phdr,ehdr.e_phentsize*ehdr.e_phnum);
+    prepare_u_arena_cluster(t_s->u_arena_cluster);
+    void* buf=malloc_page(K,1);
+
+    for (size_t i = 0; i < ehdr.e_phnum; i++){
+        if(phdr[i].p_type==PT_LOAD){
+            for (size_t j = 0; j < DIVUP(phdr[i].p_filesz,PG_SIZE); j++){
+                sys_lseek(fd,phdr[i].p_offset+j*PG_SIZE,SEEK_SET);
+                sys_read(fd,buf,PG_SIZE);
+                uint32_t u_vpool_idx=((void*)phdr[i].p_vaddr-t_s->u_vpool.s_addr)/PG_SIZE;
+                ASSERT(u_vpool_idx>=0);
+                if(get_bit_bm(&(t_s->u_vpool.bm),u_vpool_idx)){
+                    memcpy((void*)(phdr[i].p_vaddr),buf,PG_SIZE);
+                }
+                else{
+                    malloc_page_with_vaddr(U,1,(void*)(phdr[i].p_vaddr));//won't free it till exit
+                    memcpy((void*)(phdr[i].p_vaddr),buf,PG_SIZE);
+                }
+            }
+        }
+        else{
+        }
+    }
+
+    struct intr_s* intr_s=(struct intr_s*)((void*)t_s+PG_SIZE-sizeof(struct intr_s));
+    intr_s->eip=ehdr.e_entry;
+    intr_s->esp3;
+
+    /*
+    ^   args: ls0-l0-h0
+    |   argv: |  |  |  0
+    |   argc: 3
+    */
+    uint32_t args_size=0;//将要复制到用户栈的args的长度
+    uint32_t argc=0;
+    for (size_t i = 0; argv[i]!=0; i++){
+        argc++;
+        args_size+=strlen(argv[i])+1;//+1:strlen未将ls0的0计入
+    }
+    ASSERT(argc>=1);
+    void* const start_addr_of_args=(void*)((0xc0000000-args_size)&(0xffffff00));//&(0xffffff00):4字节对齐以保证栈的正常运作
+    memcpy(start_addr_of_args,(void*)(argv[0]),args_size);
+
+    uint32_t argv_array_size=4*(argc+1);//+1:argv以0结尾
+    void* const start_addr_of_argv=start_addr_of_args-argv_array_size;
+    char* new_argv[argc+1];//argv指向内核空间中的args，new_argv指向用户空间中的args
+    for (size_t i = 0; i < argc; i++){
+        new_argv[i]=argv[i]-(argv[0]-(char*)start_addr_of_args);
+    }
+    new_argv[argc]=0;
+    memcpy(start_addr_of_argv,(void*)new_argv,argv_array_size);
+
+    void* const start_addr_of_argc=start_addr_of_argv-4;
+    memcpy(start_addr_of_argc,&argc,4);
+    
+    intr_s->esp3=(uint32_t)start_addr_of_argc;
+    free_page(buf,1);
+    free_page((void*)phdr,page_cnt_alloc_for_ph_table);
+    sys_close(fd);
 }

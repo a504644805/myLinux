@@ -14,6 +14,9 @@ void init_syscall_table(){
     syscall_table[SYS_PUTCHAR]=put_char;
     syscall_table[SYS_CLEAR]=cls_screen;
     syscall_table[SYS_PRINT_DIR]=sys_print_dir;
+    syscall_table[SYS_OPEN]=sys_open;
+    syscall_table[SYS_CLOSE]=sys_close;
+    syscall_table[SYS_EXEC]=sys_execv;
 }
 
 uint32_t sys_getpid(){
@@ -55,4 +58,16 @@ void clear(){
 
 void print_dir(char* path){
     _syscall1(SYS_PRINT_DIR,path);
+}
+
+uint32_t open(const char *path, int flags){
+    return _syscall2(SYS_OPEN,path,flags);
+}
+
+void close(uint32_t fd){
+    _syscall1(SYS_CLOSE,fd);
+}
+
+void execv(const char *path, char *const argv[]){
+    _syscall2(SYS_EXEC,path,argv);
 }

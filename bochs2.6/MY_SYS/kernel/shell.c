@@ -36,18 +36,45 @@ void shell(){
             }
             break;
         case '\n':
-            cmd[cmd_offset]=0;
             putchar(c);
-            if(strcmp(cmd,"")==0){
+            cmd[cmd_offset]=0;
+            char* argv[MAX_ARG_NUM+1];
+            parse_cmd(cmd,argv,' ');
+            if(strcmp(argv[0],"")==0){
             }
-            else if(strcmp(cmd,"ls")==0){
+            else if(strcmp(argv[0],"ls")==0){
                 print_dir("/");
             }
-            else if(strcmp(cmd,"clear")==0){
+            else if(strcmp(argv[0],"clear")==0){
                 clear();
             }
-            else{
-                printf("%s: command not found\n",cmd);
+            else{//外部命令,目前只支持绝对路径
+                if(cmd[0]!='/'){
+                    printf("%s: command not found\n",argv[0]);
+                }
+                else{
+                    int fd=open(argv[0],O_RDONLY);
+                    if(fd>=3){
+                        close(fd);
+                        int i=fork();
+                        if(i==-1){
+                            u_assert(1==2);
+                        }
+                        else if(i==0){
+                            execv(argv[0],argv);
+                            u_assert(1==2);//shouldn't be here, 已经一去不回头了
+                        }
+                        else{
+                            while(1);//wait
+                        }
+                    }
+                    else if(fd==-1){
+                        printf("%s: exec file not found\n",argv[0]);
+                    }
+                    else{
+                        u_assert(1==2);
+                    }
+                }
             }
             print_prompt();
             cmd_offset=0;
@@ -68,4 +95,40 @@ void shell(){
 
 void print_prompt(){
     printf("xy@localhost:/$ ");
+}
+
+/*
+divider: 如空格，则遇到一个空格就认为是一个arg
+cmd: ls -l -h0  => ls0-l0-h0 
+                   |  |  |
+              argv[0][1][2] argv[3]=0
+ */
+int parse_cmd(char* cmd,char* argv[],char divider){
+    if (strcmp(cmd,"")==0){
+        argv[0] = cmd;
+        return 0;
+    }
+    int count = 1;
+    argv[0] = cmd;
+    for (int i = 0; cmd[i]!=0 ; i++) {
+        if (cmd[i] == divider) {
+            cmd[i] = 0;
+            argv[count] = cmd+i+1;
+            count++;
+            ASSERT(count<=MAX_ARG_NUM);
+        }
+        else {
+        }
+    }
+    argv[count] = 0;
+    return count;
+}
+
+
+void print_panic(const char* filename,int line,const char* msg){
+    //disable_intr();
+    printf("ASSERT fail in: %s at line %d\n",filename,line);
+    put_str("ASSERT fail in:");put_str(filename);put_str(" at line ");put_int(line);put_str("\n");
+    put_str(msg);put_str("\n");
+    while(1);
 }

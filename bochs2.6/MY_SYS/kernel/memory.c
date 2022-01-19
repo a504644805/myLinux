@@ -78,9 +78,32 @@ void* malloc_page(enum K_U_FLAG flag,size_t cnt){
             vaddr+=4*KB;// no need to "/4"
         }
     }
+    memset(vaddr_start,0,cnt*PG_SIZE);
     return vaddr_start;
 }
 
+void malloc_page_with_vaddr(enum K_U_FLAG flag,size_t cnt,void* vaddr){
+    int bit_idx=((uint32_t)vaddr-0x8048000)/(4*KB);
+    ASSERT(bit_idx>=0);
+    struct task_struct* pcb=get_cur_running();
+    for(size_t i=0;i<cnt;i++){
+        set_bit_bm(&((pcb->u_vpool).bm),bit_idx+i);
+    }
+
+    for (size_t i = 0; i < cnt; i++){
+        void* paddr=palloc(U);
+        if(paddr==NULL){
+            /*
+                回退
+            */
+           ASSERT(paddr!=NULL);
+        }
+        else{
+            build_mapping(vaddr,paddr);
+            vaddr+=4*KB;// no need to "/4"
+        }
+    }
+}
 /*
 alloc cnt continuous pages from vpool.
 */
@@ -240,7 +263,7 @@ void* sys_malloc(size_t sz){
         a=malloc_page(k_u_flag,DIVUP(sz+sizeof(struct arena),PG_SIZE));
         a->cluster=NULL;
         a->big_flag=BIG;
-        a->cnt=DIVUP(sz,PG_SIZE);
+        a->cnt=DIVUP(sz+sizeof(struct arena),PG_SIZE);
         a->magicNumber=19985757;
         return (void*)a+sizeof(struct arena);
     }

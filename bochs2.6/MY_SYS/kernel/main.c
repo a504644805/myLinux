@@ -49,10 +49,24 @@ int main(void){
 
 	init_fs();
 
+	extern struct channel ata0_channel;
+	uint32_t user_prog_file_size=4996;
+	uint32_t user_prog_file_sect_cnt=DIVUP(user_prog_file_size,SECT_SIZE);
+	ASSERT(user_prog_file_size<=6*KB);
+	void* user_prog_file_buf=malloc(user_prog_file_sect_cnt*SECT_SIZE);
+	ASSERT(user_prog_file_buf!=NULL);
+	ata_read(user_prog_file_sect_cnt,300,&(ata0_channel.disks[0]),user_prog_file_buf);
+	ASSERT(memcmp(user_prog_file_buf,"\177ELF\1\1\1",7)==0);
+	uint32_t u_file_fd=sys_open("/user_prog",O_CREAT|O_WRONLY);//write into fs
+	sys_write(u_file_fd,user_prog_file_buf,user_prog_file_size);
+	sys_close(u_file_fd);
+	free(user_prog_file_buf);
+
 	create_process(init,31);
 
 	while(1);
 
+	/*
 	//fs test
 	extern struct partition* default_parti;
 	struct dir_entry dir_entry={"normal1",1,NORMAL};
@@ -111,9 +125,7 @@ int main(void){
 	sys_close(fd2);
 	print_inode_list(default_parti);
 	brk5();
-
-
-	while (1);
+	*/
 
 	/*
 	//硬盘驱动测试

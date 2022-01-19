@@ -16,6 +16,7 @@
         "ata.h": "c",
         "fs.h": "c",
         "stdio.h": "c",
-        "bitmap.h": "c"
+        "bitmap.h": "c",
+        "minicrt.h": "c"
     }
 }

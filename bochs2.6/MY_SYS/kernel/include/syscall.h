@@ -15,6 +15,9 @@ void init_syscall_table();
 #define SYS_PUTCHAR 6
 #define SYS_CLEAR 7
 #define SYS_PRINT_DIR 8
+#define SYS_OPEN 9
+#define SYS_CLOSE 10
+#define SYS_EXEC 11
 uint32_t sys_getpid();
 
 //这一部分应该是用户的库而不是内核代码
@@ -47,4 +50,7 @@ void free(void* vaddr);
 void putchar(char c);
 void clear();
 void print_dir(char* path);
+uint32_t open(const char *path, int flags);
+void close(uint32_t fd);
+void execv(const char *path, char *const argv[]);
 #endif

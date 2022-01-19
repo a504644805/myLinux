@@ -129,15 +129,15 @@ void print_inode_list(struct partition* parti);
 void print_inode_in_disk(struct partition* parti, uint32_t cnt);
 void print_inode(struct inode* inode);
 void print_bm_in_parti(struct partition* parti,uint32_t type,uint32_t cnt);
-void print_bm(struct bitmap* bm,uint32_t cnt);
+void print_bm(struct bitmap* bm,uint32_t start_idx,uint32_t cnt);
 
 //--------------------sys_open----------------------
 enum OFLAGS{
     O_RDONLY,O_WRONLY,O_RDWR,O_CREAT = 4
 };
 uint32_t sys_open(const char *path, int flags);
-bool search_file_with_path(const char* path,struct dir_entry* dir_entry);
-bool search_file_in_dir(char* filename,struct dir* dir,struct partition* parti,struct dir_entry* rt_dir_entry);
+boolean search_file_with_path(const char* path,struct dir_entry* dir_entry);
+boolean search_file_in_dir(char* filename,struct dir* dir,struct partition* parti,struct dir_entry* rt_dir_entry);
 
 const char* parse_path(const char* path,char* stored_name);
 uint32_t parse_path_depth(const char* path);

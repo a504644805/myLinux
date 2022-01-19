@@ -319,18 +319,18 @@ void print_bm_in_parti(struct partition* parti,uint32_t type,uint32_t cnt){
     switch (type){
     case INODE_BITMAP:
         printf("print parti's ib:\n");
-        print_bm(&(parti->ib),cnt);
+        print_bm(&(parti->ib),0,cnt);
         break;
     case DATA_BITMAP:
         printf("print parti's db:\n");
-        print_bm(&(parti->db),cnt);
+        print_bm(&(parti->db),0,cnt);
         break;
     default:
         ASSERT(1==2);
     }
 }
-void print_bm(struct bitmap* bm,uint32_t cnt){
-    for (size_t i = 0; i < cnt; i++){
+void print_bm(struct bitmap* bm,uint32_t start_idx,uint32_t cnt){
+    for (size_t i = start_idx; i < start_idx+cnt; i++){
         printf("%d ",get_bit_bm(bm,i));
     }
     printf("\n");
@@ -366,7 +366,9 @@ uint32_t sys_open(const char *path, int flags){
             dir_close(dir,default_parti);
         }
         else{
-            ASSERT(1==2);
+            //not found and no O_CREAT flag
+            //ASSERT(1==2);
+            return -1;
         }
     }
     else{
@@ -393,7 +395,7 @@ uint32_t sys_open(const char *path, int flags){
 rt 1, 找到对应的NORMAL file或目录, 并将其对应的dir_entry放入形参dir_entry中
 rt 0, 没找到且找至最后一个目录，此时dir_entry为dir2在dir1中对应的dir_entry
 	  其他情况暂不考虑（找生路） */
-bool search_file_with_path(const char* path,struct dir_entry* dir_entry){//无需parti作形参because of uniform fs tree
+boolean search_file_with_path(const char* path,struct dir_entry* dir_entry){//无需parti作形参because of uniform fs tree
     ASSERT(path[0]=='/');
     char stored_name[MAX_FILENAME_LEN];
     const uint32_t path_depth=parse_path_depth(path);
@@ -444,7 +446,7 @@ bool search_file_with_path(const char* path,struct dir_entry* dir_entry){//无�
 
 //非递归搜索. 遍历140个盘块直到成功或失败
 //若未找到，rt 0，rt_dir_entry内容不变
-bool search_file_in_dir(char* filename,struct dir* dir,struct partition* parti,struct dir_entry* rt_dir_entry){
+boolean search_file_in_dir(char* filename,struct dir* dir,struct partition* parti,struct dir_entry* rt_dir_entry){
     struct dir_entry* dir_entry_array=(struct dir_entry*)sys_malloc(SECT_SIZE);
     ASSERT(dir_entry_array!=NULL);
     //先找12个一级索引
@@ -476,7 +478,7 @@ bool search_file_in_dir(char* filename,struct dir* dir,struct partition* parti,s
 //非递归搜索. 遍历140个盘块直到成功或失败
 //若未找到，rt 0，rt_dir_entry内容不变
 //由于miniOS未支持硬链接，因此ino唯一对应一个filename
-bool search_file_in_dir_with_ino(uint32_t ino,struct dir* dir,struct partition* parti,struct dir_entry* rt_dir_entry){
+boolean search_file_in_dir_with_ino(uint32_t ino,struct dir* dir,struct partition* parti,struct dir_entry* rt_dir_entry){
     struct dir_entry* dir_entry_array=(struct dir_entry*)sys_malloc(SECT_SIZE);
     ASSERT(dir_entry_array!=NULL);
 

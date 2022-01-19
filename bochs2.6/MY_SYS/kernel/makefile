@@ -30,3 +30,9 @@ all:
 write:
 	dd if=build/a.out of=../../a.img bs=512 count=200 seek=9 conv=notrunc
 
+user:
+	gcc -m32 -c user_prog/main.c -o user_prog/main.o -I $(KERNEL_PATH)/user_prog -fno-builtin -fno-stack-protector
+	gcc -m32 -c user_prog/minicrt.c -o user_prog/minicrt.o -I $(KERNEL_PATH)/user_prog -fno-builtin -fno-stack-protector
+	ld -melf_i386 -e _start user_prog/main.o user_prog/minicrt.o -o user_prog/user_prog
+	dd if=user_prog/user_prog of=../../a.img bs=512 count=100 seek=300 conv=notrunc
+	
