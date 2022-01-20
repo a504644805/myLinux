@@ -166,3 +166,126 @@ void sys_execv(const char *path, char *const argv[]){
     free_page((void*)phdr,page_cnt_alloc_for_ph_table);
     sys_close(fd);
 }
+
+//由于wait和exit涉及到的miniOS细节较多，因此代码注释也会较多。见谅:)
+#define INIT_PID 2
+extern struct list_head all_task_list,ready_list;
+extern struct pool kpool;
+void sys_exit(int status){
+    struct task_struct* const t_s=get_cur_running();
+    struct task_struct* cur_t_s;
+    list_for_each_entry(cur_t_s,&all_task_list,tag_all){
+        if(cur_t_s->ppid==t_s->pid){
+            cur_t_s->ppid=INIT_PID;
+        }
+        else{
+            continue;
+        }
+    }
+
+    //释放进程的用户地址空间
+    for (size_t i = 0; i < (t_s->u_vpool.bm.byte_len)*8; i++){
+        if(get_bit_bm(&(t_s->u_vpool.bm),i)==1){
+            void* vaddr=t_s->u_vpool.s_addr+i*PG_SIZE;
+            free_page(vaddr,1);
+        }
+        else{
+            continue;
+        }
+    }
+    //由于free_page不会将已空二级页表释放，因此还需专门释放下
+    for (size_t i = 0; i < 768; i++){
+        void* p_pde=get_pde_addr((void*)(0+i*4*MB));
+        uint32_t pde=*((uint32_t*)p_pde);
+        if(pde&PTE_P){
+            //由于malloc_page新建二级页表时只是借助palloc从kpool里分配出空间，而不涉及k_vpool的分配，因此释放时只需要处理下kpool.bm
+            uint32_t pte_paddr=pde&0xfffff000;//pde中存放的是pte的物理地址
+            clear_bit_bm(&(kpool.bm),((void*)pte_paddr-(kpool.s_addr))/PG_SIZE);
+        }
+        else{
+            continue;
+        }
+    }
+    free_page(t_s->u_vpool.bm.p,DIVUP(t_s->u_vpool.bm.byte_len,PG_SIZE));
+
+    for (size_t i = 3; i < MAX_PROCESS_OPEN_FILE; i++){
+        if(t_s->process_open_file[i]!=-1){
+            sys_close(i);
+        }
+        else{
+            continue;
+        }
+    }
+    
+    t_s->exit_status=status;
+
+    ASSERT(cur_t_s->ppid!=-1);
+    list_for_each_entry(cur_t_s,&all_task_list,tag_all){
+        if(cur_t_s->pid==t_s->ppid){
+            if(cur_t_s->status==WAITING){
+                wakeup(cur_t_s);
+            }
+            else{
+            }
+            break;//只有一个父亲，找到第一个即可退出循环
+        }
+        else{
+            continue;
+        }
+    }
+
+    /*
+    block完成的就是置一下status然后调度下一进程，其不负责tag_s的处理。
+    exit函数block之前无需对tag_s做处理：
+    首先，在miniOS中tag_s只可能在rdy_list或某个semaphore的list中。而此时进程正在运行，其不可能在这两个队列中，因此无需对tag_s做处理。*/
+    ASSERT(list_find(&ready_list,&(t_s->tag_s))==NULL);
+    block(HANGING);
+    ASSERT(1==2);//shouldn't be here
+}
+
+
+/*
+If wstatus is not NULL, wait() store  status  information in  the int to which it points.  
+on success, returns the process ID of the terminated child; on error, -1 is returned.*/
+/*
+功能: wait掉一个孩子
+看有没有孩子,若没则rt-1
+		   若有且处于HANGING则拿出exit_status,释放pcb及pcb里的剩余资源，rt pid
+		   若有且都不处于HANGING则block(WAITING)
+*/
+int sys_wait(int *wstatus){
+    struct task_struct* const t_s=get_cur_running();
+    struct task_struct* cur_t_s;
+    while(1){
+        boolean child_exist_flag=0;
+        list_for_each_entry(cur_t_s,&all_task_list,tag_all){
+            if(cur_t_s->ppid==t_s->pid){
+                child_exist_flag=1;
+                if(cur_t_s->status==HANGING){
+                    *wstatus=cur_t_s->exit_status;
+
+                    ASSERT(list_find(&ready_list,&(cur_t_s->tag_s))==NULL);
+                    ASSERT(list_find(&all_task_list,&(cur_t_s->tag_all)));
+                    __list_del(cur_t_s->tag_all.prev,cur_t_s->tag_all.next);
+                    free_page(cur_t_s->pd,1);
+                    uint32_t child_pid=cur_t_s->pid;
+                    free_page((void*)cur_t_s,1);
+
+                    return child_pid;
+                }
+                else{
+                    continue;
+                }
+            }
+            else{
+                continue;
+            }
+        }
+        if(child_exist_flag==0){
+            return -1;
+        }
+        else{
+            block(WAITING);
+        }
+    }
+}

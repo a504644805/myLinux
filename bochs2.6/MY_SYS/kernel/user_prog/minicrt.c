@@ -5,6 +5,9 @@ uint32_t getpid(){
 int write(int fd, const void *buf, size_t count){
     return _syscall3(SYS_WRITE,fd,buf,count);
 }
+void exit(int status){
+    _syscall1(SYS_EXIT,status);
+}
 
 int main(int argc,char** argv);
 void _start(){
@@ -12,8 +15,11 @@ void _start(){
     asm volatile("mov %%ebp,%%ebx":"=b"(ebp));
     int argc=*((int*)(ebp+4));
     char** argv=(char**)(ebp+8);
+    
     main(argc,argv);
 
-    while(1);//exit
-}
+    exit(1);
 
+    write(1,"user_prog: shouldn't be here\n",1024);
+    while(1);//shouldn't be here
+}

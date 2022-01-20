@@ -3,16 +3,16 @@ CFLAGS=-fno-builtin -Wall -W -Wstrict-prototypes -Wmissing-prototypes
 KERNEL_PATH=/home/xy/myLinux/bochs2.6/MY_SYS/kernel
 INCLUDE_FLAG=-I $(KERNEL_PATH)/include -I $(KERNEL_PATH)/lib -I $(KERNEL_PATH)/dev -I $(KERNEL_PATH)/fs
 all:
-	gcc -m32 -c main.c -o build/main.o $(INCLUDE_FLAG) -fno-builtin
+	gcc -m32 -c main.c -o build/main.o $(INCLUDE_FLAG) -fno-builtin -fno-stack-protector
 	gcc -m32 -c interrupt.c -o build/interrupt.o $(INCLUDE_FLAG) -fno-builtin -fno-stack-protector
-	gcc -m32 -c memory.c -o build/memory.o $(INCLUDE_FLAG) -fno-builtin
-	gcc -m32 -c lib/debug.c -o build/debug.o $(INCLUDE_FLAG) -fno-builtin
+	gcc -m32 -c memory.c -o build/memory.o $(INCLUDE_FLAG) -fno-builtin -fno-stack-protector
+	gcc -m32 -c lib/debug.c -o build/debug.o $(INCLUDE_FLAG) -fno-builtin -fno-stack-protector
 	gcc -m32 -c lib/string.c -o build/string.o $(INCLUDE_FLAG) -fno-builtin -fno-stack-protector
 	gcc -m32 -c thread.c -o build/thread.o $(INCLUDE_FLAG) -fno-builtin -fno-stack-protector
-	gcc -m32 -c lib/list.c -o build/list.o $(INCLUDE_FLAG) -fno-builtin
-	gcc -m32 -c lock.c -o build/lock.o $(INCLUDE_FLAG) -fno-builtin
-	gcc -m32 -c dev/keyboard.c -o build/keyboard.o $(INCLUDE_FLAG) -fno-builtin
-	gcc -m32 -c syscall.c -o build/syscall.o $(INCLUDE_FLAG) -fno-builtin
+	gcc -m32 -c lib/list.c -o build/list.o $(INCLUDE_FLAG) -fno-builtin -fno-stack-protector
+	gcc -m32 -c lock.c -o build/lock.o $(INCLUDE_FLAG) -fno-builtin -fno-stack-protector
+	gcc -m32 -c dev/keyboard.c -o build/keyboard.o $(INCLUDE_FLAG) -fno-builtin -fno-stack-protector
+	gcc -m32 -c syscall.c -o build/syscall.o $(INCLUDE_FLAG) -fno-builtin -fno-stack-protector
 	gcc -m32 -c lib/stdio.c -o build/stdio.o $(INCLUDE_FLAG) -fno-builtin -fno-stack-protector
 	gcc -m32 -c dev/ata.c -o build/ata.o $(INCLUDE_FLAG) -fno-builtin -fno-stack-protector
 	gcc -m32 -c lib/bitmap.c -o build/bitmap.o $(INCLUDE_FLAG) -fno-builtin -fno-stack-protector

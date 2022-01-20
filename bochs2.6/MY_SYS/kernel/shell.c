@@ -65,7 +65,17 @@ void shell(){
                             u_assert(1==2);//shouldn't be here, 已经一去不回头了
                         }
                         else{
-                            while(1);//wait
+                            int child_status;
+                            while(1){
+                                int child_pid=wait(&child_status);
+                                if(child_pid==-1){
+                                    continue;
+                                }
+                                else{
+                                    printf("SHELL: my exit child process's pid: %d, exit_status: %d\n",child_pid,child_status);
+                                    break;
+                                }
+                            }
                         }
                     }
                     else if(fd==-1){

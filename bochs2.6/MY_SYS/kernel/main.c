@@ -63,7 +63,7 @@ int main(void){
 	free(user_prog_file_buf);
 
 	create_process(init,31);
-
+	
 	while(1);
 
 	/*
@@ -190,18 +190,19 @@ void init(){
 	}
 	else if(i==0){
 		shell();
-		/*
-		printf("Hi, I am child, my pid is %d\n",getpid());
-		struct dir_entry* dir_entry=(struct dir_entry*)malloc(sizeof(struct dir_entry));
-		dir_entry->ftype=1;
-		dir_entry->ino=3;
-		printf("ftype: %d, ino: %d\n",dir_entry->ftype,dir_entry->ino);
-		free(dir_entry);
-		*/
 	}
 	else{
 		printf("Boot done\n");
-		//printf("Hi, I am father, my pid is %d, my child's pid is %d\n",getpid(),i);
+		while(1){
+			int child_status;
+			int child_pid=wait(&child_status);
+			if(child_pid==-1){
+				continue;
+			}
+			else{
+				printf("INIT PROCESS: my exit child process's pid: %d, exit_status: %d\n",child_pid,child_status);
+			}
+		}
 	}
 	while(1);
 }

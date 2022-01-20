@@ -17,6 +17,8 @@ void init_syscall_table(){
     syscall_table[SYS_OPEN]=sys_open;
     syscall_table[SYS_CLOSE]=sys_close;
     syscall_table[SYS_EXEC]=sys_execv;
+    syscall_table[SYS_WAIT]=sys_wait;
+    syscall_table[SYS_EXIT]=sys_exit;
 }
 
 uint32_t sys_getpid(){
@@ -70,4 +72,12 @@ void close(uint32_t fd){
 
 void execv(const char *path, char *const argv[]){
     _syscall2(SYS_EXEC,path,argv);
+}
+
+void exit(int status){
+    _syscall1(SYS_EXIT,status);
+}
+
+int wait(int *wstatus){
+    return _syscall1(SYS_WAIT,wstatus);
 }

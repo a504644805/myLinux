@@ -68,6 +68,8 @@ struct task_struct{
 
     uint32_t pid;
     uint32_t ppid;
+    int exit_status;
+    
     int stack_overflow_chk;
 };
 

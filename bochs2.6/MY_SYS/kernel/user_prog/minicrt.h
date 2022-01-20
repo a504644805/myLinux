@@ -15,8 +15,11 @@ void _start();
 
 #define SYS_GETPID 0
 #define SYS_WRITE 1
+#define SYS_EXIT 13
+
 uint32_t getpid();
 int write(int fd, const void *buf, size_t count);
+void exit(int status);
 
 #define _syscall0(num) ({\
     int retval;\
