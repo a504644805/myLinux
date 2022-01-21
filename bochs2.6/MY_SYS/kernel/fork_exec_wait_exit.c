@@ -81,6 +81,7 @@ int sys_fork(){
     for (size_t i = 0; i < MAX_PROCESS_OPEN_FILE; i++){
         uint32_t sys_ofile_idx=(child_t_s->process_open_file)[i]=(parent_t_s->process_open_file)[i];
         if(sys_ofile_idx!=-1){
+            sys_open_file[sys_ofile_idx].cnt++;
             sys_open_file[sys_ofile_idx].i_p->cnt++;
         }
     }

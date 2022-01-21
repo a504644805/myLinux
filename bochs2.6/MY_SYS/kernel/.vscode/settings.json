@@ -17,6 +17,7 @@
         "fs.h": "c",
         "stdio.h": "c",
         "bitmap.h": "c",
-        "minicrt.h": "c"
+        "minicrt.h": "c",
+        "pipe.h": "c"
     }
 }

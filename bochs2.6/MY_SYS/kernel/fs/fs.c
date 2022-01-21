@@ -2,6 +2,7 @@
 #include "ata.h"
 #include "stdio.h"
 #include "keyboard.h"
+#include "circular_queue.h"
 
 //step2
 struct channel ata0_channel;//only support 1 channel(ata0) for simplity
@@ -383,6 +384,7 @@ uint32_t sys_open(const char *path, int flags){
     }
     struct task_struct* ts=get_cur_running();
     ts->process_open_file[fd]=sys_ofile_idx;
+    sys_open_file[sys_ofile_idx].cnt=1;
     sys_open_file[sys_ofile_idx].flags=flags;
     sys_open_file[sys_ofile_idx].i_p=i_p;
     sys_open_file[sys_ofile_idx].offset=0;
@@ -866,13 +868,41 @@ void sys_close(uint32_t fd){
     ASSERT(t_s->process_open_file[fd]!=-1);
     uint32_t sys_ofile_idx=t_s->process_open_file[fd];
     ASSERT(sys_open_file[sys_ofile_idx].i_p!=NULL);
-    //打开文件表,inode_close
-    struct inode* i_p=sys_open_file[sys_ofile_idx].i_p;
-    inode_close(i_p,default_parti);
-    sys_open_file[sys_ofile_idx].flags=0;
-    sys_open_file[sys_ofile_idx].i_p=NULL;
-    sys_open_file[sys_ofile_idx].offset=0;
-    t_s->process_open_file[fd]=-1;
+    if(sys_open_file[fd].flags&PIPE){
+        if(--sys_open_file[sys_ofile_idx].cnt==0){
+            int another_sys_ofile_idx=sys_open_file[sys_ofile_idx].offset;
+            ASSERT(another_sys_ofile_idx>=3);
+            //如果对方也已经空，则需要free
+            //如果对方已非管道，则需要free
+            if(sys_open_file[another_sys_ofile_idx].i_p==NULL){
+                free_page((void*)sys_open_file[another_sys_ofile_idx].i_p,1);
+            }
+            else{
+                if(!(sys_open_file[another_sys_ofile_idx].flags&PIPE)){
+                    free_page((void*)sys_open_file[another_sys_ofile_idx].i_p,1);
+
+                }
+                else{
+                }
+            }
+            sys_open_file[sys_ofile_idx].flags=0;
+            sys_open_file[sys_ofile_idx].i_p=NULL;
+            sys_open_file[sys_ofile_idx].offset=0;
+        }
+        t_s->process_open_file[fd]=-1;
+    }
+    else{
+        //打开文件表,inode_close
+        struct inode* i_p=sys_open_file[sys_ofile_idx].i_p;
+        if(--sys_open_file[sys_ofile_idx].cnt==0){
+            inode_close(i_p,default_parti);
+            sys_open_file[sys_ofile_idx].flags=0;
+            sys_open_file[sys_ofile_idx].i_p=NULL;
+            sys_open_file[sys_ofile_idx].offset=0;        
+        }
+
+        t_s->process_open_file[fd]=-1;
+    }
 }
 
 /*
@@ -890,65 +920,76 @@ int sys_write(int fd, const void *buf, size_t count){//用于取代syscall.c的s
         memcpy((void*)p,(void*)buf,count);
         put_str(p);//
         sys_free(p);
+        return count;
     }
     else{
         uint32_t sys_ofile_idx,offset;
         struct inode* i_p;
-        struct task_struct* t_s=get_cur_running();
+        struct task_struct* const t_s=get_cur_running();
         ASSERT(t_s->process_open_file[fd]!=-1);
         sys_ofile_idx=t_s->process_open_file[fd];
         ASSERT(sys_open_file[sys_ofile_idx].i_p!=NULL);
         ASSERT((sys_open_file[sys_ofile_idx].flags&O_RDWR) || (sys_open_file[sys_ofile_idx].flags&O_WRONLY));
         i_p=sys_open_file[sys_ofile_idx].i_p;
         offset=sys_open_file[sys_ofile_idx].offset;
-        ASSERT(offset+count<=LEVEL1_REFERENCE*SECT_SIZE);//暂不考虑二级索引
-    
-        /*
-        lba[]的盘块号不一定连续，但有数据的情况是连续的:
-        lba[0]=123  [1]=42  [2]=311  [3]=-1  [4]=-1
-        有数据........................无数据........
-        */
-        const uint32_t total_sect=DIVUP((offset+count),SECT_SIZE);
-        const uint32_t already_allocated_sect_num=DIVUP((i_p->filesz),SECT_SIZE);
-        uint32_t first_negtive_1=0;
-        for (;first_negtive_1 < LEVEL1_REFERENCE; first_negtive_1++)
-            if(i_p->lba[first_negtive_1]==-1)
-                break;
-        ASSERT(first_negtive_1==already_allocated_sect_num);
 
-        const uint32_t malloc_sect=total_sect-offset/SECT_SIZE;
-        const uint32_t s_idx=offset/SECT_SIZE;//读出来，改好，写回去
-        const uint32_t e_idx=s_idx+malloc_sect-1;
-        //db
-        if(total_sect>already_allocated_sect_num){
-            for (size_t i = first_negtive_1; i < total_sect; i++){
-                uint32_t db_idx=scan_bm(&(default_parti->db),1);
-                ASSERT(db_idx!=-1);
-                set_bit_bm(&(default_parti->db),db_idx);
-                sync_bm(default_parti,db_idx,DATA_BITMAP);
-                i_p->lba[i]=db_idx+default_parti->s_b->data_start_lba;
+        if(sys_open_file[sys_ofile_idx].flags&PIPE){
+            printf("in write, this is a pipe file\n");brk1();
+            ASSERT(sys_open_file[sys_ofile_idx].flags==(PIPE|O_WRONLY));
+            for (size_t i = 0; i < count; i++){
+                cq_put_one_elem((struct circular_queue*)sys_open_file[sys_ofile_idx].i_p,((char*)buf)[i]);
             }
+            return count;
         }
-        //D 核心内容
-        void* _buf_=sys_malloc(malloc_sect*SECT_SIZE);
-        ASSERT(_buf_!=NULL);
-        ata_read(1,i_p->lba[s_idx],default_parti->disk,_buf_);
-        ata_read(1,i_p->lba[e_idx],default_parti->disk,_buf_+(e_idx-s_idx)*SECT_SIZE);
-        memcpy(_buf_+offset%SECT_SIZE,buf,count);
-        for (size_t i = 0; i < malloc_sect; i++){
-            ata_write(1,i_p->lba[s_idx+i],default_parti->disk,_buf_+i*SECT_SIZE);
+        else{
+            ASSERT(offset+count<=LEVEL1_REFERENCE*SECT_SIZE);//暂不考虑二级索引
+            /*
+            lba[]的盘块号不一定连续，但有数据的情况是连续的:
+            lba[0]=123  [1]=42  [2]=311  [3]=-1  [4]=-1
+            有数据........................无数据........
+            */
+            const uint32_t total_sect=DIVUP((offset+count),SECT_SIZE);
+            const uint32_t already_allocated_sect_num=DIVUP((i_p->filesz),SECT_SIZE);
+            uint32_t first_negtive_1=0;
+            for (;first_negtive_1 < LEVEL1_REFERENCE; first_negtive_1++)
+                if(i_p->lba[first_negtive_1]==-1)
+                    break;
+            ASSERT(first_negtive_1==already_allocated_sect_num);
+
+            const uint32_t malloc_sect=total_sect-offset/SECT_SIZE;
+            const uint32_t s_idx=offset/SECT_SIZE;//读出来，改好，写回去
+            const uint32_t e_idx=s_idx+malloc_sect-1;
+            //db
+            if(total_sect>already_allocated_sect_num){
+                for (size_t i = first_negtive_1; i < total_sect; i++){
+                    uint32_t db_idx=scan_bm(&(default_parti->db),1);
+                    ASSERT(db_idx!=-1);
+                    set_bit_bm(&(default_parti->db),db_idx);
+                    sync_bm(default_parti,db_idx,DATA_BITMAP);
+                    i_p->lba[i]=db_idx+default_parti->s_b->data_start_lba;
+                }
+            }
+            //D 核心内容
+            void* _buf_=sys_malloc(malloc_sect*SECT_SIZE);
+            ASSERT(_buf_!=NULL);
+            ata_read(1,i_p->lba[s_idx],default_parti->disk,_buf_);
+            ata_read(1,i_p->lba[e_idx],default_parti->disk,_buf_+(e_idx-s_idx)*SECT_SIZE);
+            memcpy(_buf_+offset%SECT_SIZE,buf,count);
+            for (size_t i = 0; i < malloc_sect; i++){
+                ata_write(1,i_p->lba[s_idx+i],default_parti->disk,_buf_+i*SECT_SIZE);
+            }
+            sys_free(_buf_);
+
+            //打开文件表 I
+            sys_open_file[sys_ofile_idx].offset+=count;
+
+            i_p->filesz=((offset+count)>(i_p->filesz))?(offset+count):(i_p->filesz);
+            i_p->lba;//已在上面更新
+            sync_inode(*i_p,default_parti);
+
+            return count;
         }
-        sys_free(_buf_);
-
-        //打开文件表 I
-        sys_open_file[sys_ofile_idx].offset+=count;
-
-        i_p->filesz=((offset+count)>(i_p->filesz))?(offset+count):(i_p->filesz);
-        i_p->lba;//已在上面更新
-        sync_inode(*i_p,default_parti);
     }
-
-    return count;
 }
 
 extern struct circular_queue kbd_circular_buf_queue;
@@ -965,51 +1006,61 @@ int sys_read(int fd, void *buf, size_t count){
     else{
         uint32_t sys_ofile_idx,offset;
         struct inode* i_p;
-        struct task_struct* t_s=get_cur_running();
+        struct task_struct* const t_s=get_cur_running();
         ASSERT(t_s->process_open_file[fd]!=-1);
         sys_ofile_idx=t_s->process_open_file[fd];
         ASSERT(sys_open_file[sys_ofile_idx].i_p!=NULL);
         ASSERT(!(sys_open_file[sys_ofile_idx].flags&O_WRONLY));
         i_p=sys_open_file[sys_ofile_idx].i_p;
         offset=sys_open_file[sys_ofile_idx].offset;
-        ASSERT(offset<=i_p->filesz);
-        
-        if(offset==i_p->filesz){
-            return EOF;
+
+        if(sys_open_file[sys_ofile_idx].flags&PIPE){
+            printf("in read, this is a pipe file\n");brk1();
+            ASSERT(sys_open_file[sys_ofile_idx].flags==(PIPE|O_RDONLY));
+            for (size_t i = 0; i < count; i++){
+                ((char*)buf)[i]=cq_take_one_elem((struct circular_queue*)sys_open_file[sys_ofile_idx].i_p);
+            }
+            return count;
         }
         else{
-            if((offset+count)>(i_p->filesz)){
-                count=i_p->filesz-offset;
+            ASSERT(offset<=i_p->filesz);
+            if(offset==i_p->filesz){
+                return EOF;
             }
             else{
+                if((offset+count)>(i_p->filesz)){
+                    count=i_p->filesz-offset;
+                }
+                else{
+                }
             }
-        }
-        
-        /*
-        lba[]的盘块号不一定连续，但有数据的情况是连续的:
-        lba[0]=123  [1]=42  [2]=311  [3]=-1  [4]=-1
-        有数据........................无数据........
-        */
-        const uint32_t total_sect=DIVUP((offset+count),SECT_SIZE);
-        const uint32_t already_allocated_sect_num=DIVUP((i_p->filesz),SECT_SIZE);
-        
-        const uint32_t malloc_sect=total_sect-offset/SECT_SIZE;
-        const uint32_t s_idx=offset/SECT_SIZE;
-        const uint32_t e_idx=s_idx+malloc_sect-1;
+            
+            /*
+            lba[]的盘块号不一定连续，但有数据的情况是连续的:
+            lba[0]=123  [1]=42  [2]=311  [3]=-1  [4]=-1
+            有数据........................无数据........
+            */
+            const uint32_t total_sect=DIVUP((offset+count),SECT_SIZE);
+            const uint32_t already_allocated_sect_num=DIVUP((i_p->filesz),SECT_SIZE);
+            
+            const uint32_t malloc_sect=total_sect-offset/SECT_SIZE;
+            const uint32_t s_idx=offset/SECT_SIZE;
+            const uint32_t e_idx=s_idx+malloc_sect-1;
 
-        //核心内容
-        void* _buf_=sys_malloc(malloc_sect*SECT_SIZE);
-        ASSERT(_buf_!=NULL);
-        for (size_t i = 0; i < malloc_sect; i++){
-            ata_read(1,i_p->lba[s_idx+i],default_parti->disk,_buf_+i*SECT_SIZE);
-        }
-        memcpy(buf,_buf_+offset%SECT_SIZE,count);
-        sys_free(_buf_);
+            //核心内容
+            void* _buf_=sys_malloc(malloc_sect*SECT_SIZE);
+            ASSERT(_buf_!=NULL);
+            for (size_t i = 0; i < malloc_sect; i++){
+                ata_read(1,i_p->lba[s_idx+i],default_parti->disk,_buf_+i*SECT_SIZE);
+            }
+            memcpy(buf,_buf_+offset%SECT_SIZE,count);
+            sys_free(_buf_);
 
-        //打开文件表
-        sys_open_file[sys_ofile_idx].offset+=count;
+            //打开文件表
+            sys_open_file[sys_ofile_idx].offset+=count;
 
-        return count;
+            return count;
+        }  
     }
 }
 

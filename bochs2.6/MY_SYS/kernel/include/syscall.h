@@ -3,7 +3,7 @@
 #include "global.h"
 #include "thread.h"
 
-#define SYSCALL_NUM 16
+#define SYSCALL_NUM 32
 void init_syscall_table();
 
 #define SYS_GETPID 0
@@ -20,6 +20,7 @@ void init_syscall_table();
 #define SYS_EXEC 11
 #define SYS_WAIT 12
 #define SYS_EXIT 13
+#define SYS_PIPE 14
 uint32_t sys_getpid();
 
 //这一部分应该是用户的库而不是内核代码
@@ -57,4 +58,5 @@ void close(uint32_t fd);
 void execv(const char *path, char *const argv[]);
 void exit(int status);
 int wait(int *wstatus);
+void pipe(int pipefd[2]);
 #endif

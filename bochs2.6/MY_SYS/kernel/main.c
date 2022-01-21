@@ -185,6 +185,7 @@ void idle(void* f_arg){
 }
 void init(){
 	int i=fork();
+
 	if(i==-1){
 		printf("fail to fork\n");
 	}
@@ -205,6 +206,30 @@ void init(){
 		}
 	}
 	while(1);
+
+
+	/*
+	test pipe(put code below under " void init{ "
+	int pipefd[2];
+	pipe(pipefd);
+	printf("finish pipe, pipefd[0] is %d, pipefd[1] is %d\n",pipefd[0],pipefd[1]);brk1();
+	int r=fork();
+	if(r==-1){
+		printf("fail to fork\n");
+	}
+	else if(r==0){
+		close(pipefd[0]);
+		write(pipefd[1],"Hi I am your father",19);
+		while(1);
+	}
+	else{
+		char buf[32]={0};
+		close(pipefd[1]);
+		read(pipefd[0],buf,19);
+		printf("receive \"%s\"\n",buf);
+		while(1);
+	}
+	*/
 }
 void f(void* f_arg){
 	while(1);

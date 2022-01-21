@@ -3,6 +3,7 @@
 #include "fork_exec_wait_exit.h"
 #include "fs.h"
 #include "print.h"
+#include "pipe.h"
 void* syscall_table[SYSCALL_NUM];
 void init_syscall_table(){
     syscall_table[SYS_GETPID]=sys_getpid;
@@ -19,6 +20,7 @@ void init_syscall_table(){
     syscall_table[SYS_EXEC]=sys_execv;
     syscall_table[SYS_WAIT]=sys_wait;
     syscall_table[SYS_EXIT]=sys_exit;
+    syscall_table[SYS_PIPE]=sys_pipe;
 }
 
 uint32_t sys_getpid(){
@@ -80,4 +82,8 @@ void exit(int status){
 
 int wait(int *wstatus){
     return _syscall1(SYS_WAIT,wstatus);
+}
+
+void pipe(int pipefd[2]){
+    _syscall1(SYS_PIPE,pipefd);
 }

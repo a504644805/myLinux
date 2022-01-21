@@ -18,20 +18,4 @@
 void init_kbd();
 void kbd_intr_handler();
 
-
-#define CIRCULAR_QUEUE_MAXSIZE 100
-
-struct circular_queue{ 
-    char buf[CIRCULAR_QUEUE_MAXSIZE];
-    int head;
-    int tail;
-    struct lock lock;
-    struct semaphore full;
-};
-void init_cq(struct circular_queue* q);
-char cq_take_one_elem(struct circular_queue* q);
-void cq_put_one_elem(struct circular_queue* q,char c);
-int cq_is_empty(struct circular_queue* q);
-int cq_is_full(struct circular_queue* q);
-
 #endif

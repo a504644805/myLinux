@@ -7,6 +7,7 @@
 #include "interrupt.h"
 #include "memory.h"
 #include "thread.h"
+#include "circular_queue.h"
 //[][2]
 //make_code  ascii  ascii when shift
 char make_ascii_mapping[][2]={
@@ -73,7 +74,7 @@ char make_ascii_mapping[][2]={
 //producer is kbd_intr_handler, consumer is shell who read the commond
 struct circular_queue kbd_circular_buf_queue;
 void init_kbd(){
-    init_cq(&kbd_circular_buf_queue);
+    init_cq(&kbd_circular_buf_queue,CQ_DO_NOT_USE_EMPTY);
 }
 int ctrl_status=0,alt_status=0,capslock_status=0,shift_status=0;
 
@@ -145,52 +146,5 @@ void kbd_intr_handler(){
     else{
 
     }
-}
-
-
-/*
-struct circular_queue{ 
-    char buf[CIRCULAR_QUEUE_MAXSIZE];
-    int head;
-    int tail;
-};
-*/
-//we simply turn off the intr to guarantee multi-thread safe
-void init_cq(struct circular_queue* q){
-    q->head=0;
-    q->tail=0;
-    init_lock(&(q->lock));
-    init_sem(&(q->full),0);
-}
-
-char cq_take_one_elem(struct circular_queue* q){
-    P(&(q->full));
-    lock(&(q->lock));
-    ASSERT(!cq_is_empty(q));
-    char rt=(q->buf)[q->head];
-    q->head=(q->head+1)%CIRCULAR_QUEUE_MAXSIZE;
-    unlock(&(q->lock));
-    return rt;
-}
-
-void cq_put_one_elem(struct circular_queue* q,char c){
-    lock(&(q->lock));
-    if(cq_is_full(q)){
-        //nop
-    }
-    else{
-        q->buf[q->tail]=c;
-        q->tail=(q->tail+1)%CIRCULAR_QUEUE_MAXSIZE;
-        V(&(q->full));
-    }
-    unlock(&(q->lock));
-}
-
-int cq_is_empty(struct circular_queue* q){
-    return (q->head)==(q->tail);
-}
-
-int cq_is_full(struct circular_queue* q){
-    return ((q->tail+1)%CIRCULAR_QUEUE_MAXSIZE)==(q->head);
 }
 

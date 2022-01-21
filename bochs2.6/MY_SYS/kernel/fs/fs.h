@@ -132,8 +132,10 @@ void print_bm_in_parti(struct partition* parti,uint32_t type,uint32_t cnt);
 void print_bm(struct bitmap* bm,uint32_t start_idx,uint32_t cnt);
 
 //--------------------sys_open----------------------
+/*pipe由sys_pipe创建而非sys_open。之所以将PIPE写在此处是因为PIPE不能随便定:
+  在文件操作中对于是否为管道存在判断:if (sys_ofile[].file&PIPE)==1，若随便定义PIPE为1，则将与WRONLY冲突*/
 enum OFLAGS{
-    O_RDONLY,O_WRONLY,O_RDWR,O_CREAT = 4
+    O_RDONLY,O_WRONLY,O_RDWR,O_CREAT = 4,PIPE = 8
 };
 uint32_t sys_open(const char *path, int flags);
 boolean search_file_with_path(const char* path,struct dir_entry* dir_entry);
@@ -164,7 +166,7 @@ void sys_chdir(const char *path);
 //#define MAX_PROCESS_OPEN_FILE 8 ---defined in thread.h
 #define MAX_SYSTEM_OPEN_FILE 32
 struct file{
-    uint32_t cnt;//not used yet
+    uint32_t cnt;//fork时++,子进程和父进程共享该struct file结构
     uint32_t flags;
     struct inode* i_p;
     uint32_t offset;
